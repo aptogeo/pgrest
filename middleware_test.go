@@ -1,4 +1,4 @@
-package main
+package pgrest
 
 import (
 	"bytes"
@@ -20,7 +20,9 @@ func performRequest(h http.Handler, method, path string) *httptest.ResponseRecor
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
 	restQuery := RestQueryFromRequest(r)
-	w.Write([]byte(restQuery.String()))
+	if restQuery != nil {
+		w.Write([]byte(restQuery.String()))
+	}
 }
 
 func check(err error) {
@@ -35,8 +37,19 @@ var middlewareTests = []struct {
 	body     string
 	expected *RestQuery
 }{
-	{"/rest/User/1", "GET", "", &RestQuery{"User", "1", 0, 0, nil, nil}},
-	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", "", &RestQuery{"User", "", 50, 10, nil, []*Sort{&Sort{"lastname", true}, &Sort{"firstname", false}}}},
+	{"/rest/User/1", "GET", "", &RestQuery{Get, "User", "1", "", 0, 0, nil, nil}},
+	{"/rest/User", "GET", "", &RestQuery{Get, "User", "", "", 0, 10, []*Field{}, []*Sort{}}},
+	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", "", &RestQuery{Get, "User", "", "", 50, 10, []*Field{}, []*Sort{&Sort{"lastname", true}, &Sort{"firstname", false}}}},
+	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", "", &RestQuery{Get, "User", "", "", 60, 10, []*Field{&Field{"user.*"}, &Field{"user.roles"}}, []*Sort{&Sort{"lastname", true}}}},
+	{"/rest/User", "POST", "lastname=Doe&firstname=John", &RestQuery{Post, "User", "", "", 0, 0, nil, nil}},
+	{"/rest/User/1", "PUT", "lastname=Doe&firstname=John", &RestQuery{Put, "User", "1", "", 0, 0, nil, nil}},
+	{"/rest/User/1", "PATCH", "firstname=John", &RestQuery{Patch, "User", "1", "", 0, 0, nil, nil}},
+	{"/rest/User/1", "DELETE", "", &RestQuery{Delete, "User", "1", "", 0, 0, nil, nil}},
+	{"/rest", "GET", "", nil},
+	{"/rest/Use/1", "POST", "", nil},
+	{"/rest/User", "PUT", "", nil},
+	{"/rest/User", "PATCH", "", nil},
+	{"/rest/User", "DELETE", "", nil},
 }
 
 func TestDecodeRestQuery(t *testing.T) {
@@ -54,6 +67,10 @@ func TestDecodeRestQuery(t *testing.T) {
 		check(err)
 		res.Body.Close()
 		check(err)
-		assert.Equal(t, string(body), mt.expected.String())
+		if mt.expected != nil {
+			assert.Equal(t, string(body), mt.expected.String())
+		} else {
+			assert.Equal(t, string(body), "")
+		}
 	}
 }

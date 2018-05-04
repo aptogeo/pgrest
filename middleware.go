@@ -1,7 +1,8 @@
-package main
+package pgrest
 
 import (
 	"context"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,77 +15,95 @@ import (
 // other packages.
 type key int
 
-// RestQueryKey Context key for the rest query.
+// RestQueryKey context key for the rest query.
 const restQueryKey key = 658
 
-// DecodeRestQuery decode rest parameters
+// DecodeRestQuery decodes rest parameters
 func DecodeRestQuery(next http.Handler, pattern string) http.HandlerFunc {
 	// log
 	var log = log.New(os.Stdout, "RestQuery "+pattern+":", log.Lshortfile)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			var err error
-			var resource, key string
-			var offset, limit uint64
-			var restQuery *RestQuery
+		var restQuery *RestQuery
+		var resource, key string
+		re := regexp.MustCompile(pattern + "(\\w+)(/(\\w*))?")
+		res := re.FindStringSubmatch(r.RequestURI)
+		if len(res) > 1 {
+			resource = res[1]
+		}
+		if len(res) > 3 {
+			key = res[3]
+		}
 
-			re := regexp.MustCompile(pattern + "(\\w+)(/(\\w*))?")
-			res := re.FindStringSubmatch(r.RequestURI)
+		var err error
+		var offset, limit uint64
+		var body string
 
-			if len(res) > 1 {
-				resource = res[1]
-			}
-			if len(res) > 3 {
-				key = res[3]
-			}
-
-			params := r.URL.Query()
-
-			if resource == "" {
-				restQuery = &RestQuery{"", "", 0, 0, nil, nil}
-			} else if key != "" {
-				restQuery = &RestQuery{resource, key, 0, 0, nil, nil}
+		if resource != "" {
+			if key != "" {
+				if r.Method == "GET" {
+					restQuery = &RestQuery{Get, resource, key, "", 0, 0, nil, nil}
+				} else if r.Method == "PUT" {
+					if bytes, err := ioutil.ReadAll(r.Body); err == nil {
+						body = string(bytes)
+					}
+					restQuery = &RestQuery{Put, resource, key, body, 0, 0, nil, nil}
+				} else if r.Method == "PATCH" {
+					if bytes, err := ioutil.ReadAll(r.Body); err == nil {
+						body = string(bytes)
+					}
+					restQuery = &RestQuery{Patch, resource, key, body, 0, 0, nil, nil}
+				} else if r.Method == "DELETE" {
+					restQuery = &RestQuery{Delete, resource, key, "", 0, 0, nil, nil}
+				}
 			} else {
-				offsetStr := params.Get("offset")
-				if offset, err = strconv.ParseUint(offsetStr, 10, 64); err != nil {
-					offset = 0
-				}
+				if r.Method == "GET" {
+					params := r.URL.Query()
 
-				limitStr := params.Get("limit")
-				if limit, err = strconv.ParseUint(limitStr, 10, 64); err != nil {
-					limit = 10
-				}
+					offsetStr := params.Get("offset")
+					if offset, err = strconv.ParseUint(offsetStr, 10, 64); err != nil {
+						offset = 0
+					}
 
-				var fields []*Field
-				fieldsStr := strings.TrimSpace(params.Get("fields"))
-				if fieldsStr != "" {
+					limitStr := params.Get("limit")
+					if limit, err = strconv.ParseUint(limitStr, 10, 64); err != nil {
+						limit = 10
+					}
+
+					var fields []*Field
+					fieldsStr := strings.TrimSpace(params.Get("fields"))
 					fieldsStrs := strings.Split(fieldsStr, ",")
-					fields = make([]*Field, len(fieldsStrs))
-					for i, s := range fieldsStrs {
+					fields = make([]*Field, 0)
+					for _, s := range fieldsStrs {
 						st := strings.TrimSpace(s)
 						if st != "" {
-							fields[i] = &Field{st}
+							fields = append(fields, &Field{st})
 						}
 					}
-				}
 
-				var sorts []*Sort
-				sortStr := strings.TrimSpace(params.Get("sort"))
-				sortStrs := strings.Split(sortStr, ",")
-				sorts = make([]*Sort, len(sortStrs))
-				for i, s := range sortStrs {
-					st := strings.TrimSpace(s)
-					if st != "" {
-						if strings.HasPrefix(s, "-") {
-							sorts[i] = &Sort{st[1:len(st)], false}
-						} else {
-							sorts[i] = &Sort{st, true}
+					var sorts []*Sort
+					sortStr := strings.TrimSpace(params.Get("sort"))
+					sortStrs := strings.Split(sortStr, ",")
+					sorts = make([]*Sort, 0)
+					for _, s := range sortStrs {
+						st := strings.TrimSpace(s)
+						if st != "" {
+							if strings.HasPrefix(s, "-") {
+								sorts = append(sorts, &Sort{st[1:len(st)], false})
+							} else {
+								sorts = append(sorts, &Sort{st, true})
+							}
 						}
 					}
+					restQuery = &RestQuery{Get, resource, "", "", offset, limit, fields, sorts}
+				} else if r.Method == "POST" {
+					if bytes, err := ioutil.ReadAll(r.Body); err == nil {
+						body = string(bytes)
+					}
+					restQuery = &RestQuery{Post, resource, "", body, 0, 0, nil, nil}
 				}
-				restQuery = &RestQuery{resource, key, offset, limit, fields, sorts}
 			}
-
+		}
+		if restQuery != nil {
 			log.Println(restQuery)
 			r = r.WithContext(context.WithValue(r.Context(), restQueryKey, restQuery))
 			log.Println(r.Context())
@@ -95,12 +114,20 @@ func DecodeRestQuery(next http.Handler, pattern string) http.HandlerFunc {
 
 // RestQueryFromRequest can be used to obtain the RestQuery from the request.
 func RestQueryFromRequest(r *http.Request) *RestQuery {
-	return r.Context().Value(restQueryKey).(*RestQuery)
+	obj := r.Context().Value(restQueryKey)
+	if obj == nil {
+		return nil
+	}
+	return obj.(*RestQuery)
 }
 
 // RestQueryFromContext can be used to obtain the RestQuery from the context.
 func RestQueryFromContext(ctx context.Context) *RestQuery {
-	return ctx.Value(restQueryKey).(*RestQuery)
+	obj := ctx.Value(restQueryKey)
+	if obj == nil {
+		return nil
+	}
+	return obj.(*RestQuery)
 }
 
 // Handle with RestQuery

@@ -1,4 +1,4 @@
-package main
+package pgrest
 
 import (
 	"fmt"
@@ -6,8 +6,10 @@ import (
 
 // RestQuery structure
 type RestQuery struct {
+	Action   Action
 	Resource string
 	Key      string
+	Body     string
 	Offset   uint64
 	Limit    uint64
 	Fields   []*Field
@@ -16,9 +18,9 @@ type RestQuery struct {
 
 func (q *RestQuery) String() string {
 	if q.Key != "" {
-		return fmt.Sprintf("%v[%v]", q.Resource, q.Key)
+		return fmt.Sprintf("%v: %v[%v]", q.Action, q.Resource, q.Key)
 	}
-	return fmt.Sprintf("%v offset=%v limit=%v fields=%v sorts=%v", q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts)
+	return fmt.Sprintf("%v: %v offset=%v limit=%v fields=%v sorts=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts)
 }
 
 // Field structure
