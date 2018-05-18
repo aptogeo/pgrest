@@ -41,7 +41,20 @@ func DecodeRestQuery(next http.Handler, pattern string) http.HandlerFunc {
 		if resource != "" {
 			if key != "" {
 				if r.Method == "GET" {
-					restQuery = &RestQuery{Get, resource, key, "", 0, 0, nil, nil}
+					params := r.URL.Query()
+
+					var fields []Field
+					fieldsStr := strings.TrimSpace(params.Get("fields"))
+					fieldsStrs := strings.Split(fieldsStr, ",")
+					fields = make([]Field, 0)
+					for _, s := range fieldsStrs {
+						st := strings.TrimSpace(s)
+						if st != "" {
+							fields = append(fields, Field{st})
+						}
+					}
+
+					restQuery = &RestQuery{Get, resource, key, "", 0, 0, fields, nil}
 				} else if r.Method == "PUT" {
 					if bytes, err := ioutil.ReadAll(r.Body); err == nil {
 						body = string(bytes)
@@ -69,28 +82,28 @@ func DecodeRestQuery(next http.Handler, pattern string) http.HandlerFunc {
 						limit = 10
 					}
 
-					var fields []*Field
+					var fields []Field
 					fieldsStr := strings.TrimSpace(params.Get("fields"))
 					fieldsStrs := strings.Split(fieldsStr, ",")
-					fields = make([]*Field, 0)
+					fields = make([]Field, 0)
 					for _, s := range fieldsStrs {
 						st := strings.TrimSpace(s)
 						if st != "" {
-							fields = append(fields, &Field{st})
+							fields = append(fields, Field{st})
 						}
 					}
 
-					var sorts []*Sort
+					var sorts []Sort
 					sortStr := strings.TrimSpace(params.Get("sort"))
 					sortStrs := strings.Split(sortStr, ",")
-					sorts = make([]*Sort, 0)
+					sorts = make([]Sort, 0)
 					for _, s := range sortStrs {
 						st := strings.TrimSpace(s)
 						if st != "" {
 							if strings.HasPrefix(s, "-") {
-								sorts = append(sorts, &Sort{st[1:len(st)], false})
+								sorts = append(sorts, Sort{st[1:len(st)], false})
 							} else {
-								sorts = append(sorts, &Sort{st, true})
+								sorts = append(sorts, Sort{st, true})
 							}
 						}
 					}

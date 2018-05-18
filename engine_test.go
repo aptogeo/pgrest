@@ -11,13 +11,13 @@ import (
 )
 
 type Book struct {
-	ID       int64
+	ID       int
 	Title    string
-	AuthorID int64
+	AuthorID int
 }
 
 type Author struct {
-	ID        int64
+	ID        int
 	Firstname string
 	Lastname  string
 	Books     []*Book
@@ -38,7 +38,7 @@ func populate(db *pg.DB, t *testing.T) {
 		})
 		assert.Nil(t, err)
 	}
-	authors := []*Author{{
+	authors := []Author{{
 		Firstname: "Antoine",
 		Lastname:  "de Saint Exupéry",
 	}, {
@@ -51,7 +51,7 @@ func populate(db *pg.DB, t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, countAuthors, 2)
 
-	books := []*Book{{
+	books := []Book{{
 		Title:    "Courrier sud",
 		AuthorID: authors[0].ID,
 	}, {
@@ -88,18 +88,6 @@ func populate(db *pg.DB, t *testing.T) {
 
 	err = db.Insert(&books)
 	assert.Nil(t, err)
-	countBooks, err := db.Model(&Book{}).Count()
-	assert.Nil(t, err)
-	assert.Equal(t, countBooks, 11)
-
-	var selectedAuthors []Author
-	err = db.Model(&selectedAuthors).
-		Relation("Books").
-		Select()
-	assert.Nil(t, err)
-	assert.Equal(t, len(selectedAuthors), 2)
-	assert.Equal(t, len(selectedAuthors[0].Books), 6)
-	assert.Equal(t, len(selectedAuthors[1].Books), 5)
 }
 
 func TestEngine(t *testing.T) {
@@ -113,5 +101,53 @@ func TestEngine(t *testing.T) {
 
 	populate(db, t)
 
-	engine.Execute(db, &RestQuery{Get, "", "0", "", 0, 0, nil, nil})
+	var err error
+	var res interface{}
+	var authors []Author
+
+	res, err = engine.Execute(db, &RestQuery{Get, "Author", "1", "", 0, 0, nil, nil})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, res.(*Author).ID, 1)
+	assert.Equal(t, res.(*Author).Firstname, "Antoine")
+	assert.Equal(t, len(res.(*Author).Books), 0)
+
+	res, err = engine.Execute(db, &RestQuery{Get, "Author", "1", "", 0, 0, []Field{Field{"*"}, Field{"Books"}}, nil})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, res.(*Author).ID, 1)
+	assert.Equal(t, res.(*Author).Firstname, "Antoine")
+	assert.Equal(t, len(res.(*Author).Books), 6)
+	assert.Equal(t, res.(*Author).Books[0].Title, "Courrier sud")
+
+	res, err = engine.Execute(db, &RestQuery{Get, "Author", "2", "", 0, 0, []Field{Field{"*"}, Field{"Books"}}, nil})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, res.(*Author).ID, 2)
+	assert.Equal(t, res.(*Author).Firstname, "Franz")
+	assert.Equal(t, len(res.(*Author).Books), 5)
+	assert.Equal(t, res.(*Author).Books[0].Title, "La Métamorphose")
+
+	res, err = engine.Execute(db, &RestQuery{Get, "Author", "", "", 0, 10, nil, nil})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	authors = *res.(*[]Author)
+	assert.Equal(t, len(authors), 2)
+	assert.Equal(t, authors[0].ID, 1)
+
+	res, err = engine.Execute(db, &RestQuery{Get, "Author", "", "", 0, 10, nil, []Sort{Sort{"firstname", true}}})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	authors = *res.(*[]Author)
+	assert.Equal(t, len(authors), 2)
+	assert.Equal(t, authors[0].Firstname, "Antoine")
+	assert.Equal(t, authors[1].Firstname, "Franz")
+
+	res, err = engine.Execute(db, &RestQuery{Get, "Author", "", "", 0, 10, nil, []Sort{Sort{"firstname", false}}})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	authors = *res.(*[]Author)
+	assert.Equal(t, len(authors), 2)
+	assert.Equal(t, authors[0].Firstname, "Franz")
+	assert.Equal(t, authors[1].Firstname, "Antoine")
 }

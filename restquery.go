@@ -12,13 +12,13 @@ type RestQuery struct {
 	Body     string
 	Offset   uint64
 	Limit    uint64
-	Fields   []*Field
-	Sorts    []*Sort
+	Fields   []Field
+	Sorts    []Sort
 }
 
 func (q *RestQuery) String() string {
 	if q.Key != "" {
-		return fmt.Sprintf("%v: %v[%v]", q.Action, q.Resource, q.Key)
+		return fmt.Sprintf("%v: %v[%v] fields=%v", q.Action, q.Resource, q.Key, q.Fields)
 	}
 	return fmt.Sprintf("%v: %v offset=%v limit=%v fields=%v sorts=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts)
 }

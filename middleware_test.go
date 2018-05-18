@@ -38,9 +38,10 @@ var middlewareTests = []struct {
 	expected *RestQuery
 }{
 	{"/rest/User/1", "GET", "", &RestQuery{Get, "User", "1", "", 0, 0, nil, nil}},
-	{"/rest/User", "GET", "", &RestQuery{Get, "User", "", "", 0, 10, []*Field{}, []*Sort{}}},
-	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", "", &RestQuery{Get, "User", "", "", 50, 10, []*Field{}, []*Sort{&Sort{"lastname", true}, &Sort{"firstname", false}}}},
-	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", "", &RestQuery{Get, "User", "", "", 60, 10, []*Field{&Field{"user.*"}, &Field{"user.roles"}}, []*Sort{&Sort{"lastname", true}}}},
+	{"/rest/User/1?fields=user.*,user.roles", "GET", "", &RestQuery{Get, "User", "1", "", 0, 0, []Field{Field{"user.*"}, Field{"user.roles"}}, nil}},
+	{"/rest/User", "GET", "", &RestQuery{Get, "User", "", "", 0, 10, []Field{}, []Sort{}}},
+	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", "", &RestQuery{Get, "User", "", "", 50, 10, []Field{}, []Sort{Sort{"lastname", true}, Sort{"firstname", false}}}},
+	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", "", &RestQuery{Get, "User", "", "", 60, 10, []Field{Field{"user.*"}, Field{"user.roles"}}, []Sort{Sort{"lastname", true}}}},
 	{"/rest/User", "POST", "lastname=Doe&firstname=John", &RestQuery{Post, "User", "", "", 0, 0, nil, nil}},
 	{"/rest/User/1", "PUT", "lastname=Doe&firstname=John", &RestQuery{Put, "User", "1", "", 0, 0, nil, nil}},
 	{"/rest/User/1", "PATCH", "firstname=John", &RestQuery{Patch, "User", "1", "", 0, 0, nil, nil}},

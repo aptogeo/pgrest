@@ -14,7 +14,7 @@ type Engine struct {
 }
 
 // Execute executes a rest query
-func (e *Engine) Execute(db *pg.DB, restQuery *RestQuery) (res interface{}, err error) {
+func (e *Engine) Execute(db *pg.DB, restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Resource == "" {
 		return nil, fmt.Errorf("resource undefined")
 	}
@@ -32,22 +32,64 @@ func (e *Engine) Execute(db *pg.DB, restQuery *RestQuery) (res interface{}, err 
 	return nil, nil
 }
 
-func (e *Engine) executeActionGet(db *pg.DB, resource *Resource, restQuery *RestQuery) (res interface{}, err error) {
+func (e *Engine) executeActionGet(db *pg.DB, resource *Resource, restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Key != "" {
-		element := reflect.New(resource.Type)
-		table := orm.GetTable(resource.Type)
-		if len(table.PKs) == 1 {
-			pk := table.PKs[0]
-			pk.ScanValue(element, []byte(restQuery.Key))
-		} else {
-			return nil, fmt.Errorf("only single pk is permitted for %v", resource.Type)
-		}
-		db.Select(element)
-		return element, nil
+		return e.getOne(db, resource, restQuery)
 	}
-	elements := reflect.ArrayOf(0, resource.Type)
-	db.Model(elements).Select()
-	return elements, nil
+	return e.getPage(db, resource, restQuery)
+}
+
+func (e *Engine) getOne(db *pg.DB, resource *Resource, restQuery *RestQuery) (interface{}, error) {
+	elem := reflect.New(resource.Type).Elem()
+	table := orm.GetTable(resource.Type)
+	if len(table.PKs) == 1 {
+		pk := table.PKs[0]
+		pk.ScanValue(elem, []byte(restQuery.Key))
+	} else {
+		return nil, fmt.Errorf("only single pk is permitted for %v", resource.Type)
+	}
+	iface := elem.Addr().Interface()
+	query := db.Model(iface).WherePK()
+	e.addQueryFields(query, restQuery.Fields)
+	if err := query.Select(); err != nil {
+		return nil, err
+	}
+	return iface, nil
+}
+
+func (e *Engine) getPage(db *pg.DB, resource *Resource, restQuery *RestQuery) (*Page, error) {
+	sliceType := reflect.MakeSlice(reflect.SliceOf(resource.Type), 0, 0).Type()
+	iface := reflect.New(sliceType).Interface()
+	query := db.Model(iface)
+	e.addQueryFields(query, restQuery.Fields)
+	e.addQuerySorts(query, restQuery.Sorts)
+	if err := query.Select(); err != nil {
+		return nil, err
+	}
+	page := &Page{Slice: iface}
+	return page, nil
+}
+
+func (e *Engine) addQueryFields(query *orm.Query, fields []Field) {
+	if len(fields) > 0 {
+		for _, field := range fields {
+			query.Column(field.Name)
+		}
+	}
+}
+
+func (e *Engine) addQuerySorts(query *orm.Query, sorts []Sort) {
+	if len(sorts) > 0 {
+		for _, sort := range sorts {
+			var orderExpr string
+			if sort.Asc {
+				orderExpr = sort.Name + " ASC"
+			} else {
+				orderExpr = sort.Name + " DESC"
+			}
+			query.Order(orderExpr)
+		}
+	}
 }
 
 // NewEngine constructs Engine
