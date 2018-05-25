@@ -29,4 +29,11 @@ func TestAction(t *testing.T) {
 	assert.NotEqual(t, Patch, All)
 	assert.NotEqual(t, Delete, All)
 	assert.Equal(t, All, Get+Post+Put+Patch+Delete)
+	assert.Equal(t, 0, int(None))
+	assert.Equal(t, 1, int(Get))
+	assert.Equal(t, 2, int(Post))
+	assert.Equal(t, 4, int(Put))
+	assert.Equal(t, 8, int(Patch))
+	assert.Equal(t, 16, int(Delete))
+	assert.Equal(t, 31, int(All))
 }

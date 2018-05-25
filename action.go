@@ -4,8 +4,6 @@ package pgrest
 type Action int
 
 const (
-	// None action
-	None Action = 1 << iota
 	// Get action
 	Get Action = 1 << iota
 	// Post action
@@ -18,4 +16,22 @@ const (
 	Delete Action = 1 << iota
 	// All actions
 	All Action = Get + Post + Put + Patch + Delete
+	// None action
+	None Action = 0
 )
+
+func (a Action) String() string {
+	if a == Get {
+		return "Get"
+	} else if a == Post {
+		return "Post"
+	} else if a == Put {
+		return "Put"
+	} else if a == Patch {
+		return "Patch"
+	} else if a == Delete {
+		return "Delete"
+	} else {
+		return "None"
+	}
+}

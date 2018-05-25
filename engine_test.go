@@ -1,153 +1,119 @@
 package pgrest
 
 import (
-	"reflect"
+	"encoding/json"
+	"strconv"
 	"testing"
-	"time"
 
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
 	"github.com/stretchr/testify/assert"
 )
 
-type Book struct {
-	ID       int
-	Title    string
-	AuthorID int
-}
+func TestDeserialize(t *testing.T) {
+	config := NewConfig("/rest/", nil)
+	config.AddResource(NewResource("Book", (*Book)(nil), All))
+	engine := NewEngine(config)
 
-type Author struct {
-	ID        int
-	Firstname string
-	Lastname  string
-	Books     []*Book
-}
+	var err error
+	var book *Book
 
-func pgOptions() *pg.Options {
-	return &pg.Options{
-		User:               "postgres",
-		Database:           "postgres",
-		IdleCheckFrequency: 100 * time.Millisecond,
-	}
-}
-
-func populate(db *pg.DB, t *testing.T) {
-	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil)} {
-		err := db.CreateTable(model, &orm.CreateTableOptions{
-			Temp: true,
-		})
-		assert.Nil(t, err)
-	}
-	authors := []Author{{
-		Firstname: "Antoine",
-		Lastname:  "de Saint Exupéry",
-	}, {
-		Firstname: "Franz",
-		Lastname:  "Kafka",
-	}}
-	err := db.Insert(&authors)
+	book = &Book{}
+	err = engine.Deserialize(&RestQuery{Action: Post, Resource: "Book", ContentType: "application/json", Content: []byte("{\"Title\":\"a title\",\"NbPages\":520,\"UnknownField\":\"UnknownField\"}")}, book)
 	assert.Nil(t, err)
-	countAuthors, err := db.Model(&Author{}).Count()
-	assert.Nil(t, err)
-	assert.Equal(t, countAuthors, 2)
+	assert.NotNil(t, book)
+	assert.Equal(t, book.Title, "a title")
+	assert.Equal(t, book.NbPages, 520)
 
-	books := []Book{{
-		Title:    "Courrier sud",
-		AuthorID: authors[0].ID,
-	}, {
-		Title:    "Vol de nuit",
-		AuthorID: authors[0].ID,
-	}, {
-		Title:    "Terre des hommes",
-		AuthorID: authors[0].ID,
-	}, {
-		Title:    "Lettre à un otage",
-		AuthorID: authors[0].ID,
-	}, {
-		Title:    "Pilote de guerre",
-		AuthorID: authors[0].ID,
-	}, {
-		Title:    "Le Petit Prince",
-		AuthorID: authors[0].ID,
-	}, {
-		Title:    "La Métamorphose",
-		AuthorID: authors[1].ID,
-	}, {
-		Title:    "La Colonie pénitentiaire",
-		AuthorID: authors[1].ID,
-	}, {
-		Title:    "Le Procès",
-		AuthorID: authors[1].ID,
-	}, {
-		Title:    "Le Château",
-		AuthorID: authors[1].ID,
-	}, {
-		Title:    "L'Amérique",
-		AuthorID: authors[1].ID,
-	}}
-
-	err = db.Insert(&books)
+	book = &Book{}
+	err = engine.Deserialize(&RestQuery{Action: Post, Resource: "Book", ContentType: "application/x-www-form-urlencoded", Content: []byte("Title=another title&NbPages=310&UnknownField=UnknownField")}, book)
 	assert.Nil(t, err)
+	assert.NotNil(t, book)
+	assert.Equal(t, book.Title, "another title")
+	assert.Equal(t, book.NbPages, 310)
 }
 
 func TestEngine(t *testing.T) {
-	config := NewConfig()
-	config.AddResource(NewResource(reflect.TypeOf(Author{}), All))
-	config.AddResource(NewResource(reflect.TypeOf(Book{}), All))
+	db, config := initTests(t)
+	defer db.Close()
 	engine := NewEngine(config)
 
-	db := pg.Connect(pgOptions())
-	defer db.Close()
+	for _, author := range authors {
+		content, err := json.Marshal(author)
+		assert.Nil(t, err)
+		res, err := engine.Execute(&RestQuery{Action: Post, Resource: "Author", ContentType: "application/json", Content: content})
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
+		resAuthor := res.(*Author)
+		assert.NotEqual(t, resAuthor.ID, 0)
+		assert.Equal(t, resAuthor.Firstname, author.Firstname)
+		assert.Equal(t, resAuthor.Lastname, author.Lastname)
+	}
 
-	populate(db, t)
+	for _, book := range books {
+		content, err := json.Marshal(book)
+		assert.Nil(t, err)
+		res, err := engine.Execute(&RestQuery{Action: Post, Resource: "Book", ContentType: "application/json", Content: content})
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
+		resBook := res.(*Book)
+		assert.NotEqual(t, resBook.ID, 0)
+		assert.NotEqual(t, resBook.AuthorID, 0)
+		assert.Equal(t, resBook.Title, book.Title)
+		assert.Equal(t, resBook.NbPages, 0)
+
+		res, err = engine.Execute(&RestQuery{Action: Patch, Resource: "Book", Key: strconv.Itoa(resBook.ID), ContentType: "application/x-www-form-urlencoded", Content: []byte("NbPages=200")})
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
+		resBook = res.(*Book)
+		assert.NotEqual(t, resBook.ID, 0)
+		assert.NotEqual(t, resBook.AuthorID, 0)
+		assert.Equal(t, resBook.Title, book.Title)
+		assert.Equal(t, resBook.NbPages, 200)
+	}
 
 	var err error
 	var res interface{}
-	var authors []Author
+	var page Page
 
-	res, err = engine.Execute(db, &RestQuery{Get, "Author", "1", "", 0, 0, nil, nil})
+	res, err = engine.Execute(&RestQuery{Action: Get, Resource: "Author"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
-	assert.Equal(t, res.(*Author).ID, 1)
-	assert.Equal(t, res.(*Author).Firstname, "Antoine")
-	assert.Equal(t, len(res.(*Author).Books), 0)
+	page = *res.(*Page)
+	assert.Equal(t, page.Count(), uint64(3))
+	resAuthors := *page.Slice().(*[]Author)
+	for _, author := range resAuthors {
+		res, err = engine.Execute(&RestQuery{Action: Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []Field{Field{"*"}, Field{"Books"}}})
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
+		resAuthor := res.(*Author)
+		assert.Equal(t, resAuthor.ID, author.ID)
+		assert.Equal(t, author.Firstname, author.Firstname)
+		assert.True(t, len(resAuthor.Books) > 0)
+		for _, resBook := range resAuthor.Books {
+			assert.NotNil(t, resBook.Title)
+			assert.Equal(t, resBook.NbPages, 200)
 
-	res, err = engine.Execute(db, &RestQuery{Get, "Author", "1", "", 0, 0, []Field{Field{"*"}, Field{"Books"}}, nil})
+			res, err = engine.Execute(&RestQuery{Action: Put, Resource: "Book", Key: strconv.Itoa(resBook.ID), ContentType: "application/x-www-form-urlencoded", Content: []byte("Title=" + resBook.Title + "_1&AuthorID=" + strconv.Itoa(resBook.AuthorID))})
+			assert.Nil(t, err)
+			assert.NotNil(t, res)
+			resBook2 := res.(*Book)
+			assert.NotEqual(t, resBook2.ID, 0)
+			assert.NotEqual(t, resBook2.AuthorID, 0)
+			assert.Equal(t, resBook2.Title, resBook.Title+"_1")
+			assert.Equal(t, resBook2.NbPages, 0)
+		}
+	}
+
+	_, err = engine.Execute(&RestQuery{Action: Delete, Resource: "Author", Key: "1"})
+	res, err = engine.Execute(&RestQuery{Action: Get, Resource: "Author"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
-	assert.Equal(t, res.(*Author).ID, 1)
-	assert.Equal(t, res.(*Author).Firstname, "Antoine")
-	assert.Equal(t, len(res.(*Author).Books), 6)
-	assert.Equal(t, res.(*Author).Books[0].Title, "Courrier sud")
+	page = *res.(*Page)
+	assert.Equal(t, page.Count(), uint64(2))
 
-	res, err = engine.Execute(db, &RestQuery{Get, "Author", "2", "", 0, 0, []Field{Field{"*"}, Field{"Books"}}, nil})
+	_, err = engine.Execute(&RestQuery{Action: Delete, Resource: "Author", Key: "3"})
+	res, err = engine.Execute(&RestQuery{Action: Get, Resource: "Author"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
-	assert.Equal(t, res.(*Author).ID, 2)
-	assert.Equal(t, res.(*Author).Firstname, "Franz")
-	assert.Equal(t, len(res.(*Author).Books), 5)
-	assert.Equal(t, res.(*Author).Books[0].Title, "La Métamorphose")
-
-	res, err = engine.Execute(db, &RestQuery{Get, "Author", "", "", 0, 10, nil, nil})
-	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	authors = *res.(*[]Author)
-	assert.Equal(t, len(authors), 2)
-	assert.Equal(t, authors[0].ID, 1)
-
-	res, err = engine.Execute(db, &RestQuery{Get, "Author", "", "", 0, 10, nil, []Sort{Sort{"firstname", true}}})
-	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	authors = *res.(*[]Author)
-	assert.Equal(t, len(authors), 2)
-	assert.Equal(t, authors[0].Firstname, "Antoine")
-	assert.Equal(t, authors[1].Firstname, "Franz")
-
-	res, err = engine.Execute(db, &RestQuery{Get, "Author", "", "", 0, 10, nil, []Sort{Sort{"firstname", false}}})
-	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	authors = *res.(*[]Author)
-	assert.Equal(t, len(authors), 2)
-	assert.Equal(t, authors[0].Firstname, "Franz")
-	assert.Equal(t, authors[1].Firstname, "Antoine")
+	page = *res.(*Page)
+	assert.Equal(t, page.Count(), uint64(1))
 }

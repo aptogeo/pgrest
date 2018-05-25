@@ -6,21 +6,25 @@ import (
 
 // RestQuery structure
 type RestQuery struct {
-	Action   Action
-	Resource string
-	Key      string
-	Body     string
-	Offset   uint64
-	Limit    uint64
-	Fields   []Field
-	Sorts    []Sort
+	Action      Action
+	Resource    string
+	Key         string
+	ContentType string
+	Content     []byte
+	Offset      uint64
+	Limit       uint64
+	Fields      []Field
+	Sorts       []Sort
 }
 
 func (q *RestQuery) String() string {
-	if q.Key != "" {
-		return fmt.Sprintf("%v: %v[%v] fields=%v", q.Action, q.Resource, q.Key, q.Fields)
+	if q.Action == Get {
+		if q.Key == "" {
+			return fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts)
+		}
+		return fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
 	}
-	return fmt.Sprintf("%v: %v offset=%v limit=%v fields=%v sorts=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts)
+	return fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
 }
 
 // Field structure
