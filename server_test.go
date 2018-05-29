@@ -1,4 +1,4 @@
-package pgrest
+package pgrest_test
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/mathieumast/pgrest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +19,7 @@ func nothingToDOHandler(w http.ResponseWriter, r *http.Request) {
 func TestServer(t *testing.T) {
 	db, config := initTests(t)
 	defer db.Close()
-	server := NewServer(config)
+	server := pgrest.NewServer(config)
 
 	ts := httptest.NewServer(server)
 	defer ts.Close()

@@ -1,4 +1,4 @@
-package pgrest
+package pgrest_test
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"github.com/mathieumast/pgrest"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,7 +25,7 @@ type Author struct {
 	Books     []*Book
 }
 
-func initTests(t *testing.T) (*pg.DB, *Config) {
+func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	db := pg.Connect(&pg.Options{
 		User:               "postgres",
 		Database:           "postgres",
@@ -37,9 +38,9 @@ func initTests(t *testing.T) (*pg.DB, *Config) {
 		assert.Nil(t, err)
 	}
 
-	config := NewConfig("/rest/", db)
-	config.AddResource(NewResource("Author", (*Author)(nil), All))
-	config.AddResource(NewResource("Book", (*Book)(nil), All))
+	config := pgrest.NewConfig("/rest/", db)
+	config.AddResource(pgrest.NewResource("Author", (*Author)(nil), pgrest.All))
+	config.AddResource(pgrest.NewResource("Book", (*Book)(nil), pgrest.All))
 	return db, config
 }
 
