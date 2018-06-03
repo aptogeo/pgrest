@@ -38,34 +38,34 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			restQuery.ContentType = config.DefaultContentType()
 		}
 
-		if offset, err := strconv.ParseUint(params.Get("offset"), 10, 64); err == nil {
-			restQuery.Offset = offset
+		if offset, err := strconv.ParseInt(params.Get("offset"), 10, 64); err == nil {
+			restQuery.Offset = int(offset)
 		}
 
-		if limit, err := strconv.ParseUint(params.Get("limit"), 10, 64); err == nil {
-			restQuery.Limit = limit
+		if limit, err := strconv.ParseInt(params.Get("limit"), 10, 64); err == nil {
+			restQuery.Limit = int(limit)
 		}
 
 		fieldsStr := strings.TrimSpace(params.Get("fields"))
 		fieldsStrs := strings.Split(fieldsStr, ",")
-		restQuery.Fields = make([]Field, 0)
+		restQuery.Fields = make([]*Field, 0)
 		for _, s := range fieldsStrs {
 			st := strings.TrimSpace(s)
 			if st != "" {
-				restQuery.Fields = append(restQuery.Fields, Field{st})
+				restQuery.Fields = append(restQuery.Fields, &Field{st})
 			}
 		}
 
 		sortStr := strings.TrimSpace(params.Get("sort"))
 		sortStrs := strings.Split(sortStr, ",")
-		restQuery.Sorts = make([]Sort, 0)
+		restQuery.Sorts = make([]*Sort, 0)
 		for _, s := range sortStrs {
 			st := strings.TrimSpace(s)
 			if st != "" {
 				if strings.HasPrefix(s, "-") {
-					restQuery.Sorts = append(restQuery.Sorts, Sort{st[1:len(st)], false})
+					restQuery.Sorts = append(restQuery.Sorts, &Sort{st[1:len(st)], false})
 				} else {
-					restQuery.Sorts = append(restQuery.Sorts, Sort{st, true})
+					restQuery.Sorts = append(restQuery.Sorts, &Sort{st, true})
 				}
 			}
 		}

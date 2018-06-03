@@ -26,10 +26,10 @@ var requestDecoderTests = []struct {
 	expected *pgrest.RestQuery
 }{
 	{"/rest/User/1", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1"}},
-	{"/rest/User/1?fields=*,Roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1", Offset: 0, Limit: 10, Fields: []pgrest.Field{pgrest.Field{"*"}, pgrest.Field{"Roles"}}}},
-	{"/rest/User", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 0, Limit: 10, Fields: []pgrest.Field{}, Sorts: []pgrest.Sort{}}},
-	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 50, Limit: 10, Fields: []pgrest.Field{}, Sorts: []pgrest.Sort{pgrest.Sort{"lastname", true}, pgrest.Sort{"firstname", false}}}},
-	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 60, Limit: 10, Fields: []pgrest.Field{pgrest.Field{"user.*"}, pgrest.Field{"user.roles"}}, Sorts: []pgrest.Sort{pgrest.Sort{"lastname", true}}}},
+	{"/rest/User/1?fields=*,Roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1", Offset: 0, Limit: 10, Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}, &pgrest.Field{Name: "Roles"}}}},
+	{"/rest/User", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 0, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{}}},
+	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 50, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}, &pgrest.Sort{Name: "firstname", Asc: false}}}},
+	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 60, Limit: 10, Fields: []*pgrest.Field{&pgrest.Field{Name: "user.*"}, &pgrest.Field{Name: "user.roles"}}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}}}},
 	{"/rest/User", "POST", &pgrest.RestQuery{Action: pgrest.Post, Resource: "User"}},
 	{"/rest/User/1", "PUT", &pgrest.RestQuery{Action: pgrest.Put, Resource: "User", Key: "1"}},
 	{"/rest/User/1", "PATCH", &pgrest.RestQuery{Action: pgrest.Patch, Resource: "User", Key: "1"}},

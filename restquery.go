@@ -2,6 +2,7 @@ package pgrest
 
 import (
 	"fmt"
+	"strings"
 )
 
 // RestQuery structure
@@ -11,16 +12,17 @@ type RestQuery struct {
 	Key         string
 	ContentType string
 	Content     []byte
-	Offset      uint64
-	Limit       uint64
-	Fields      []Field
-	Sorts       []Sort
+	Offset      int
+	Limit       int
+	Fields      []*Field
+	Sorts       []*Sort
+	Filter      *Filter
 }
 
 func (q *RestQuery) String() string {
 	if q.Action == Get {
 		if q.Key == "" {
-			return fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts)
+			return fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts, q.Filter)
 		}
 		return fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
 	}
@@ -51,11 +53,21 @@ func (s *Sort) String() string {
 
 // Filter structure
 type Filter struct {
-	Name  string
-	Op    string
-	Value string
+	Op      Op        // operation
+	Attr    string    // attribute name
+	Value   string    // attribute value
+	Filters []*Filter // sub filters for 'and', 'or' and 'not' operation
 }
 
 func (f *Filter) String() string {
-	return fmt.Sprintf("%v[%v]:%v", f.Name, f.Op, f.Value)
+	if f.Op == And || f.Op == Or {
+		var sb strings.Builder
+		for _, filter := range f.Filters {
+			sb.WriteRune(' ')
+			sb.WriteString(filter.String())
+			sb.WriteRune(' ')
+		}
+		return fmt.Sprintf("%v (%v)", f.Op, sb)
+	}
+	return fmt.Sprintf("%v %v %v", f.Attr, f.Op, f.Value)
 }

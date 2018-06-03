@@ -2,38 +2,18 @@ package pgrest
 
 // Page structure
 type Page struct {
-	slice  interface{}
-	offset uint64
-	limit  uint64
-	count  uint64
+	Slice  interface{} `json:"slice"`
+	Offset int         `json:"offset"`
+	Limit  int         `json:"limit"`
+	Count  int         `json:"count"`
 }
 
 // NewPage constructs Page
-func NewPage(slice interface{}, count uint64, restQuery *RestQuery) *Page {
+func NewPage(slice interface{}, count int, restQuery *RestQuery) *Page {
 	p := new(Page)
-	p.slice = slice
-	p.offset = restQuery.Offset
-	p.limit = restQuery.Limit
-	p.count = count
+	p.Slice = slice
+	p.Offset = restQuery.Offset
+	p.Limit = restQuery.Limit
+	p.Count = count
 	return p
-}
-
-// Slice returns slice
-func (p *Page) Slice() interface{} {
-	return p.slice
-}
-
-// Offset returns offset
-func (p *Page) Offset() uint64 {
-	return p.offset
-}
-
-// Limit returns limit
-func (p *Page) Limit() uint64 {
-	return p.limit
-}
-
-// Count returns count
-func (p *Page) Count() uint64 {
-	return p.count
 }

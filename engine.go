@@ -30,14 +30,14 @@ func (e *Engine) Config() *Config {
 // Execute executes a rest query
 func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Resource == "" {
-		return nil, fmt.Errorf("resource is mandatory")
+		return nil, NewErrorBadRequest("resource is mandatory")
 	}
 	resource, err := e.getResource(restQuery)
 	if err != nil {
-		return nil, err
+		return nil, &Error{Cause: err}
 	}
 	if restQuery.Action|resource.Action() == None {
-		return nil, fmt.Errorf("action query %v forbidden: resource action is %v", restQuery.Action, resource.Action())
+		return nil, &Error{Message: fmt.Sprintf("action query '%v' forbidden: resource action is '%v'", restQuery.Action, resource.Action()), Code: 403}
 	}
 
 	if restQuery.Action == Get {
@@ -51,18 +51,18 @@ func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
 	} else if restQuery.Action == Delete {
 		return e.executeActionDelete(resource, restQuery)
 	}
-	return nil, fmt.Errorf("unknow action: %v", restQuery.Action)
+	return nil, &Error{Message: fmt.Sprintf("unknow action '%v'", restQuery.Action)}
 }
 
 // Deserialize deserializes data into entity
 func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 	resource, err := e.getResource(restQuery)
 	if err != nil {
-		return err
+		return &Error{Cause: err}
 	}
 	if regexp.MustCompile("[+-/]json($|[+-])").MatchString(restQuery.ContentType) {
 		if err := json.Unmarshal(restQuery.Content, entity); err != nil {
-			return err
+			return &Error{Cause: err}
 		}
 	} else if regexp.MustCompile("[+-/]form($|[+-])").MatchString(restQuery.ContentType) {
 		table := orm.GetTable(resource.ResourceType())
@@ -79,18 +79,18 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 			}
 		}
 	} else {
-		return fmt.Errorf("no know content type: '%v'", restQuery.ContentType)
+		return NewErrorBadRequest(fmt.Sprintf("Unknown content type '%v'", restQuery.ContentType))
 	}
 	return nil
 }
 
 func (e *Engine) getResource(restQuery *RestQuery) (*Resource, error) {
 	if restQuery.Resource == "" {
-		return nil, fmt.Errorf("resource is mandatory")
+		return nil, NewErrorBadRequest("resource is mandatory")
 	}
 	resource := e.config.GetResource(restQuery.Resource)
 	if resource == nil {
-		return nil, fmt.Errorf("resource %v not found", restQuery.Resource)
+		return nil, NewErrorBadRequest(fmt.Sprintf("resource '%v' not defined in engine configuration", restQuery.Resource))
 	}
 	return resource, nil
 }
@@ -104,63 +104,75 @@ func (e *Engine) executeActionGet(resource *Resource, restQuery *RestQuery) (int
 
 func (e *Engine) executeActionPost(resource *Resource, restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Key != "" {
-		return nil, fmt.Errorf("action Post: key is forbidden")
+		return nil, NewErrorBadRequest("action 'Post': key is forbidden")
 	}
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
 	e.Deserialize(restQuery, entity)
-	return entity, e.config.DB().Insert(entity)
+	if err := e.config.DB().Insert(entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
+	return entity, nil
 }
 
 func (e *Engine) executeActionPut(resource *Resource, restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Key == "" {
-		return nil, fmt.Errorf("action Put: key is mandatory")
+		return nil, NewErrorBadRequest("action 'Put': key is mandatory")
 	}
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
 	e.Deserialize(restQuery, entity)
-	e.setPk(resource.ResourceType(), elem, restQuery.Key)
-	return entity, e.config.DB().Update(entity)
+	setPk(resource.ResourceType(), elem, restQuery.Key)
+	if err := e.config.DB().Update(entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
+	return entity, nil
 }
 
 func (e *Engine) executeActionPatch(resource *Resource, restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Key == "" {
-		return nil, fmt.Errorf("action Patch: key is mandatory")
+		return nil, NewErrorBadRequest("action 'Patch': key is mandatory")
 	}
 	entity, err := e.getOne(resource, restQuery)
 	if err != nil {
-		return nil, err
+		return nil, NewErrorFromCause(restQuery, err)
 	}
 	e.Deserialize(restQuery, entity)
 	elem := reflect.ValueOf(entity).Elem()
-	if err := e.setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
-		return nil, err
+	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
 	}
-	return entity, e.config.DB().Update(entity)
+	if err := e.config.DB().Update(entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
+	return entity, nil
 }
 
 func (e *Engine) executeActionDelete(resource *Resource, restQuery *RestQuery) (interface{}, error) {
 	if restQuery.Key == "" {
-		return nil, fmt.Errorf("action Delete: key is mandatory")
+		return nil, NewErrorBadRequest("action 'Delete': key is mandatory")
 	}
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
-	if err := e.setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
-		return nil, err
+	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
 	}
-	return nil, e.config.DB().Delete(entity)
+	if err := e.config.DB().Delete(entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
+	return entity, nil
 }
 
 func (e *Engine) getOne(resource *Resource, restQuery *RestQuery) (interface{}, error) {
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
-	if err := e.setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
-		return nil, err
+	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
 	}
-	query := e.config.DB().Model(entity).WherePK()
-	e.addQueryFields(query, restQuery.Fields)
-	if err := query.Select(); err != nil {
-		return nil, err
+	q := e.config.DB().Model(entity).WherePK()
+	q = addQueryFields(q, restQuery.Fields)
+	if err := q.Select(); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
 	}
 	return entity, nil
 }
@@ -168,49 +180,21 @@ func (e *Engine) getOne(resource *Resource, restQuery *RestQuery) (interface{}, 
 func (e *Engine) getPage(resource *Resource, restQuery *RestQuery) (*Page, error) {
 	sliceType := reflect.MakeSlice(reflect.SliceOf(resource.ResourceType()), 0, 0).Type()
 	entities := reflect.New(sliceType).Interface()
-	query := e.config.DB().Model(entities)
-	e.addQueryFields(query, restQuery.Fields)
-	e.addQuerySorts(query, restQuery.Sorts)
-	count, err := query.Count()
+	q := e.config.DB().Model(entities)
+	q = addQueryLimit(q, restQuery.Limit)
+	q = addQueryOffset(q, restQuery.Offset)
+	q = addQueryFields(q, restQuery.Fields)
+	q = addQuerySorts(q, restQuery.Sorts)
+	q = addQueryFilter(q, restQuery.Filter, And)
+	count, err := q.Count()
 	if err != nil {
-		return nil, err
+		return nil, NewErrorFromCause(restQuery, err)
 	}
 	if count == 0 {
 		return NewPage(nil, 0, restQuery), nil
 	}
-	if err := query.Select(); err != nil {
-		return nil, err
+	if err := q.Select(); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
 	}
-	return NewPage(entities, uint64(count), restQuery), nil
-}
-
-func (e *Engine) setPk(resourceType reflect.Type, elem reflect.Value, key string) error {
-	table := orm.GetTable(resourceType)
-	if len(table.PKs) == 1 {
-		pk := table.PKs[0]
-		return pk.ScanValue(elem, []byte(key))
-	}
-	return fmt.Errorf("only single pk is permitted (resourse %v)", resourceType)
-}
-
-func (e *Engine) addQueryFields(query *orm.Query, fields []Field) {
-	if len(fields) > 0 {
-		for _, field := range fields {
-			query.Column(field.Name)
-		}
-	}
-}
-
-func (e *Engine) addQuerySorts(query *orm.Query, sorts []Sort) {
-	if len(sorts) > 0 {
-		for _, sort := range sorts {
-			var orderExpr string
-			if sort.Asc {
-				orderExpr = sort.Name + " ASC"
-			} else {
-				orderExpr = sort.Name + " DESC"
-			}
-			query.Order(orderExpr)
-		}
-	}
+	return NewPage(entities, count, restQuery), nil
 }

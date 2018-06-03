@@ -37,25 +37,33 @@ func TestEngine(t *testing.T) {
 	defer db.Close()
 	engine := pgrest.NewEngine(config)
 
+	var err error
+	var content []byte
+	var res interface{}
+	var page pgrest.Page
+	var resAuthor *Author
+	var resAuthors []Author
+	var resBook *Book
+
 	for _, author := range authors {
-		content, err := json.Marshal(author)
+		content, err = json.Marshal(author)
 		assert.Nil(t, err)
-		res, err := engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Author", ContentType: "application/json", Content: content})
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Author", ContentType: "application/json", Content: content})
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
-		resAuthor := res.(*Author)
+		resAuthor = res.(*Author)
 		assert.NotEqual(t, resAuthor.ID, 0)
 		assert.Equal(t, resAuthor.Firstname, author.Firstname)
 		assert.Equal(t, resAuthor.Lastname, author.Lastname)
 	}
 
 	for _, book := range books {
-		content, err := json.Marshal(book)
+		content, err = json.Marshal(book)
 		assert.Nil(t, err)
-		res, err := engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/json", Content: content})
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/json", Content: content})
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
-		resBook := res.(*Book)
+		resBook = res.(*Book)
 		assert.NotEqual(t, resBook.ID, 0)
 		assert.NotEqual(t, resBook.AuthorID, 0)
 		assert.Equal(t, resBook.Title, book.Title)
@@ -71,25 +79,22 @@ func TestEngine(t *testing.T) {
 		assert.Equal(t, resBook.NbPages, 200)
 	}
 
-	var err error
-	var res interface{}
-	var page pgrest.Page
-
 	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count(), uint64(3))
-	resAuthors := *page.Slice().(*[]Author)
+	assert.Equal(t, page.Count, 3)
+	resAuthors = *page.Slice.(*[]Author)
+	assert.Equal(t, len(resAuthors), 3)
 	for _, author := range resAuthors {
-		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []pgrest.Field{pgrest.Field{"*"}, pgrest.Field{"Books"}}})
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}, &pgrest.Field{Name: "Books"}}})
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
-		resAuthor := res.(*Author)
+		resAuthor = res.(*Author)
 		assert.Equal(t, resAuthor.ID, author.ID)
 		assert.Equal(t, author.Firstname, author.Firstname)
 		assert.True(t, len(resAuthor.Books) > 0)
-		for _, resBook := range resAuthor.Books {
+		for _, resBook = range resAuthor.Books {
 			assert.NotNil(t, resBook.Title)
 			assert.Equal(t, resBook.NbPages, 200)
 
@@ -104,17 +109,51 @@ func TestEngine(t *testing.T) {
 		}
 	}
 
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Eq, Attr: "title", Value: "Le Petit Prince"}})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	page = *res.(*pgrest.Page)
+	assert.Equal(t, page.Count, 3)
+
+	/*res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{&pgrest.Filter{Op: pgrest.Eq, Attr: "title", Value: "Le Petit Prince"}, &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "NI"}}}})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	page = *res.(*pgrest.Page)
+	assert.Equal(t, page.Count, 3)*/
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: "12345"})
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Delete, Resource: "Author", Key: "12345"})
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Put, Resource: "Author", Key: "12345", ContentType: "application/x-www-form-urlencoded", Content: []byte("Firstname=Firstname&Lastanme=Lastname")})
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Patch, Resource: "Author", Key: "12345", ContentType: "application/x-www-form-urlencoded", Content: []byte("Firstname=Firstname")})
+	assert.NotNil(t, err)
+	assert.Nil(t, res)
+
 	_, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Delete, Resource: "Author", Key: "1"})
+	assert.Nil(t, err)
 	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count(), uint64(2))
+	assert.Equal(t, page.Count, 2)
+	resAuthors = *page.Slice.(*[]Author)
+	assert.Equal(t, len(resAuthors), 2)
 
 	_, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Delete, Resource: "Author", Key: "3"})
+	assert.Nil(t, err)
 	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count(), uint64(1))
+	assert.Equal(t, page.Count, 1)
+	resAuthors = *page.Slice.(*[]Author)
+	assert.Equal(t, len(resAuthors), 1)
 }
