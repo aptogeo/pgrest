@@ -5,6 +5,7 @@ import (
 	"reflect"
 
 	"github.com/go-pg/pg/orm"
+	"github.com/go-pg/pg/types"
 )
 
 func setPk(resourceType reflect.Type, elem reflect.Value, key string) error {
@@ -111,9 +112,9 @@ func addQueryFilter(query *orm.Query, filter *Filter, parentGroupOp Op) *orm.Que
 
 func addWhere(query *orm.Query, condition string, attribute string, value string, parentGroupOp Op) *orm.Query {
 	if parentGroupOp == Or {
-		return query.WhereOr(condition, attribute, value)
+		return query.WhereOr(condition, types.F(attribute), value)
 	}
-	return query.Where(condition, attribute, value)
+	return query.Where(condition, types.F(attribute), value)
 }
 
 func addWhereGroup(query *orm.Query, fnGroup func(query *orm.Query) (*orm.Query, error), parentGroupOp Op) *orm.Query {

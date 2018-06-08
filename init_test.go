@@ -28,7 +28,7 @@ type Author struct {
 func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	db := pg.Connect(&pg.Options{
 		User:               "postgres",
-		Database:           "postgres",
+		Password:           "postgres",
 		IdleCheckFrequency: 100 * time.Millisecond,
 	})
 	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil)} {

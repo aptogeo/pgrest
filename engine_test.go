@@ -109,11 +109,11 @@ func TestEngine(t *testing.T) {
 		}
 	}
 
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Eq, Attr: "title", Value: "Le Petit Prince"}})
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count, 3)
+	assert.Equal(t, page.Count, 2)
 
 	/*res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{&pgrest.Filter{Op: pgrest.Eq, Attr: "title", Value: "Le Petit Prince"}, &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "NI"}}}})
 	assert.Nil(t, err)
