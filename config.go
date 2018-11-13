@@ -49,6 +49,7 @@ type Config struct {
 	db                 *pg.DB
 	resources          map[string]*Resource
 	defaultContentType string
+	defaultAccept      string
 }
 
 // AddResource adds resource
@@ -90,6 +91,11 @@ func (c *Config) DefaultContentType() string {
 	return c.defaultContentType
 }
 
+// DefaultAccept gets defaultAccept
+func (c *Config) DefaultAccept() string {
+	return c.defaultAccept
+}
+
 // DB gets db
 func (c *Config) DB() *pg.DB {
 	return c.db
@@ -102,5 +108,6 @@ func NewConfig(prefix string, db *pg.DB) *Config {
 	c.db = db
 	c.resources = make(map[string]*Resource)
 	c.defaultContentType = "application/json"
+	c.defaultAccept = "application/json"
 	return c
 }

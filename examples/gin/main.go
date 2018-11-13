@@ -30,6 +30,7 @@ type Author struct {
 func newConfig() *pgrest.Config {
 	db := pg.Connect(&pg.Options{
 		User:               "postgres",
+		Password:           "postgres",
 		Database:           "postgres",
 		IdleCheckFrequency: 100 * time.Millisecond,
 	})

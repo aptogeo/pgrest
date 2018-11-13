@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-pg/pg/orm"
+	"github.com/vmihailenco/msgpack"
 )
 
 // Engine structure
@@ -77,6 +78,10 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 					}
 				}
 			}
+		}
+	} else if regexp.MustCompile("[+-/]msgpack($|[+-])").MatchString(restQuery.ContentType) {
+		if err := msgpack.Unmarshal(restQuery.Content, entity); err != nil {
+			return &Error{Cause: err}
 		}
 	} else {
 		return NewErrorBadRequest(fmt.Sprintf("Unknown content type '%v'", restQuery.ContentType))

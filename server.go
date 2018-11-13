@@ -2,7 +2,11 @@ package pgrest
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"regexp"
+
+	"github.com/vmihailenco/msgpack"
 )
 
 // Server structure
@@ -35,7 +39,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		} else if res == nil {
 			http.Error(writer, "resource not found", http.StatusNotFound)
 		} else {
-			jsonStr, err := json.Marshal(res)
+			serialized, err := s.Serialize(restQuery, res)
 			if err != nil {
 				http.Error(writer, err.Error(), http.StatusInternalServerError)
 			} else {
@@ -52,7 +56,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 				} else {
 					writer.WriteHeader(http.StatusOK)
 				}
-				writer.Write(jsonStr)
+				writer.Write(serialized)
 			}
 		}
 	} else {
@@ -62,4 +66,14 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 			http.Error(writer, "Request isn't rest request", http.StatusInternalServerError)
 		}
 	}
+}
+
+// Serialize serializes data into entity
+func (s *Server) Serialize(restQuery *RestQuery, entity interface{}) ([]byte, error) {
+	if regexp.MustCompile("[+-/]json($|[+-])").MatchString(restQuery.Accept) {
+		return json.Marshal(entity)
+	} else if regexp.MustCompile("[+-/]msgpack($|[+-])").MatchString(restQuery.Accept) {
+		return msgpack.Marshal(entity)
+	}
+	return nil, NewErrorBadRequest(fmt.Sprintf("Unknown accept '%v'", restQuery.Accept))
 }

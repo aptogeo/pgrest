@@ -1,6 +1,7 @@
 package pgrest
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -38,6 +39,11 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			restQuery.ContentType = config.DefaultContentType()
 		}
 
+		restQuery.Accept = request.Header.Get("Accept")
+		if restQuery.Accept == "" {
+			restQuery.Accept = config.DefaultAccept()
+		}
+
 		if offset, err := strconv.ParseInt(params.Get("offset"), 10, 64); err == nil {
 			restQuery.Offset = int(offset)
 		}
@@ -68,6 +74,12 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 					restQuery.Sorts = append(restQuery.Sorts, &Sort{st, true})
 				}
 			}
+		}
+
+		filterStr := strings.TrimSpace(params.Get("filter"))
+		restQuery.Filter = &Filter{}
+		if strings.HasPrefix(filterStr, "{") {
+			json.Unmarshal([]byte(filterStr), restQuery.Filter)
 		}
 
 		return restQuery

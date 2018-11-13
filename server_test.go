@@ -94,4 +94,14 @@ func TestServer(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, page)
 	assert.Equal(t, page.Count, 12)
+
+	req, err = http.NewRequest("GET", ts.URL+"/rest/Book", bytes.NewBufferString(""))
+	assert.Nil(t, err)
+	req.Header.Set("Accept", "application/x-msgpack")
+	res, err = http.DefaultClient.Do(req)
+	assert.Nil(t, err)
+	body, err = ioutil.ReadAll(res.Body)
+	assert.Nil(t, err)
+	err = res.Body.Close()
+	assert.Nil(t, err)
 }

@@ -11,6 +11,7 @@ type RestQuery struct {
 	Resource    string
 	Key         string
 	ContentType string
+	Accept      string
 	Content     []byte
 	Offset      int
 	Limit       int

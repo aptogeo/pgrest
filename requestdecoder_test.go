@@ -27,9 +27,10 @@ var requestDecoderTests = []struct {
 }{
 	{"/rest/User/1", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1"}},
 	{"/rest/User/1?fields=*,Roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1", Offset: 0, Limit: 10, Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}, &pgrest.Field{Name: "Roles"}}}},
-	{"/rest/User", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 0, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{}}},
-	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 50, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}, &pgrest.Sort{Name: "firstname", Asc: false}}}},
-	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 60, Limit: 10, Fields: []*pgrest.Field{&pgrest.Field{Name: "user.*"}, &pgrest.Field{Name: "user.roles"}}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}}}},
+	{"/rest/User", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 0, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{}, Filter: &pgrest.Filter{}}},
+	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 50, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}, &pgrest.Sort{Name: "firstname", Asc: false}}, Filter: &pgrest.Filter{}}},
+	{"/rest/User?offset=60&limit=10&sort=lastname&fields=user.*,user.roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 60, Limit: 10, Fields: []*pgrest.Field{&pgrest.Field{Name: "user.*"}, &pgrest.Field{Name: "user.roles"}}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}}, Filter: &pgrest.Filter{}}},
+	{"/rest/User?filter=%7B%22Op%22%3A%22ilk%22%2C%22Attr%22%3A%22title%22%2C%22Value%22%3A%22%25lo%25%22%7D", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 0, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{}, Filter: &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}}},
 	{"/rest/User", "POST", &pgrest.RestQuery{Action: pgrest.Post, Resource: "User"}},
 	{"/rest/User/1", "PUT", &pgrest.RestQuery{Action: pgrest.Put, Resource: "User", Key: "1"}},
 	{"/rest/User/1", "PATCH", &pgrest.RestQuery{Action: pgrest.Patch, Resource: "User", Key: "1"}},

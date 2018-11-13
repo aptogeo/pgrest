@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/vmihailenco/msgpack"
+
 	"github.com/mathieumast/pgrest"
 	"github.com/stretchr/testify/assert"
 )
@@ -15,6 +17,7 @@ func TestDeserialize(t *testing.T) {
 	engine := pgrest.NewEngine(config)
 
 	var err error
+	var content []byte
 	var book *Book
 
 	book = &Book{}
@@ -30,9 +33,19 @@ func TestDeserialize(t *testing.T) {
 	assert.NotNil(t, book)
 	assert.Equal(t, book.Title, "another title")
 	assert.Equal(t, book.NbPages, 310)
+
+	book = &Book{Title: "msgpack title", NbPages: 480}
+	content, err = msgpack.Marshal(book)
+	assert.Nil(t, err)
+	book = &Book{}
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-msgpack", Content: content}, book)
+	assert.Nil(t, err)
+	assert.NotNil(t, book)
+	assert.Equal(t, book.Title, "msgpack title")
+	assert.Equal(t, book.NbPages, 480)
 }
 
-func TestEngine(t *testing.T) {
+func TestPostPatchGetDelete(t *testing.T) {
 	db, config := initTests(t)
 	defer db.Close()
 	engine := pgrest.NewEngine(config)
@@ -115,27 +128,11 @@ func TestEngine(t *testing.T) {
 	page = *res.(*pgrest.Page)
 	assert.Equal(t, page.Count, 2)
 
-	/*res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{&pgrest.Filter{Op: pgrest.Eq, Attr: "title", Value: "Le Petit Prince"}, &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "NI"}}}})
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{&pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}, &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%ta%"}}}})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count, 3)*/
-
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: "12345"})
-	assert.NotNil(t, err)
-	assert.Nil(t, res)
-
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Delete, Resource: "Author", Key: "12345"})
-	assert.NotNil(t, err)
-	assert.Nil(t, res)
-
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Put, Resource: "Author", Key: "12345", ContentType: "application/x-www-form-urlencoded", Content: []byte("Firstname=Firstname&Lastanme=Lastname")})
-	assert.NotNil(t, err)
-	assert.Nil(t, res)
-
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Patch, Resource: "Author", Key: "12345", ContentType: "application/x-www-form-urlencoded", Content: []byte("Firstname=Firstname")})
-	assert.NotNil(t, err)
-	assert.Nil(t, res)
+	assert.Equal(t, page.Count, 4)
 
 	_, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Delete, Resource: "Author", Key: "1"})
 	assert.Nil(t, err)
@@ -156,4 +153,45 @@ func TestEngine(t *testing.T) {
 	assert.Equal(t, page.Count, 1)
 	resAuthors = *page.Slice.(*[]Author)
 	assert.Equal(t, len(resAuthors), 1)
+}
+
+func TestFormUrlencoded(t *testing.T) {
+	db, config := initTests(t)
+	defer db.Close()
+	engine := pgrest.NewEngine(config)
+
+	var err error
+	var res interface{}
+	var resAuthor *Author
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Author", ContentType: "application/x-www-form-urlencoded", Content: []byte("Firstname=Firstname&Lastname=Lastname")})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	resAuthor = res.(*Author)
+	assert.NotEqual(t, resAuthor.ID, 0)
+	assert.Equal(t, resAuthor.Firstname, "Firstname")
+	assert.Equal(t, resAuthor.Lastname, "Lastname")
+}
+
+func TestMsgpack(t *testing.T) {
+	db, config := initTests(t)
+	defer db.Close()
+	engine := pgrest.NewEngine(config)
+
+	var err error
+	var content []byte
+	var res interface{}
+	var resAuthor *Author
+
+	resAuthor = &Author{Firstname: "MsgpackFirstname", Lastname: "MsgpackLastname"}
+	content, err = msgpack.Marshal(resAuthor)
+	assert.Nil(t, err)
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Author", ContentType: "application/x-msgpack", Content: content})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	resAuthor = res.(*Author)
+	assert.NotEqual(t, resAuthor.ID, 0)
+	assert.Equal(t, resAuthor.Firstname, "MsgpackFirstname")
+	assert.Equal(t, resAuthor.Lastname, "MsgpackLastname")
 }
