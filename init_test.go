@@ -6,9 +6,22 @@ import (
 
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"github.com/google/uuid"
 	"github.com/mathieumast/pgrest"
 	"github.com/stretchr/testify/assert"
 )
+
+type Todo struct {
+	ID   uuid.UUID `sql:",pk"`
+	Text string
+}
+
+func (t *Todo) BeforeInsert(db orm.DB) error {
+	if t.ID == uuid.Nil {
+		t.ID = uuid.New()
+	}
+	return nil
+}
 
 type Book struct {
 	ID       int
@@ -31,7 +44,7 @@ func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 		Password:           "postgres",
 		IdleCheckFrequency: 100 * time.Millisecond,
 	})
-	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil)} {
+	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil), (*Todo)(nil)} {
 		err := db.CreateTable(model, &orm.CreateTableOptions{
 			Temp: true,
 		})
@@ -39,10 +52,17 @@ func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	}
 
 	config := pgrest.NewConfig("/rest/", db)
+	config.AddResource(pgrest.NewResource("Todo", (*Todo)(nil), pgrest.All))
 	config.AddResource(pgrest.NewResource("Author", (*Author)(nil), pgrest.All))
 	config.AddResource(pgrest.NewResource("Book", (*Book)(nil), pgrest.All))
 	return db, config
 }
+
+var todos = []Todo{{
+	Text: "Todo1",
+}, {
+	Text: "Todo2",
+}}
 
 var authors = []Author{{
 	Firstname: "Antoine",

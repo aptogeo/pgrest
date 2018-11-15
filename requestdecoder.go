@@ -82,7 +82,7 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			json.Unmarshal([]byte(filterStr), restQuery.Filter)
 		}
 
-		return restQuery
+		return restQuery.WithContext(request.Context())
 	}
 	return nil
 }

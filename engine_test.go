@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/vmihailenco/msgpack"
 
 	"github.com/mathieumast/pgrest"
@@ -54,9 +56,21 @@ func TestPostPatchGetDelete(t *testing.T) {
 	var content []byte
 	var res interface{}
 	var page pgrest.Page
+	var resTodo *Todo
 	var resAuthor *Author
 	var resAuthors []Author
 	var resBook *Book
+
+	for _, todo := range todos {
+		content, err = json.Marshal(todo)
+		assert.Nil(t, err)
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Todo", ContentType: "application/json", Content: content})
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
+		resTodo = res.(*Todo)
+		assert.NotEqual(t, resTodo.ID, uuid.Nil)
+		assert.NotEqual(t, resTodo.Text, "")
+	}
 
 	for _, author := range authors {
 		content, err = json.Marshal(author)

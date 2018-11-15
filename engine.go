@@ -114,7 +114,7 @@ func (e *Engine) executeActionPost(resource *Resource, restQuery *RestQuery) (in
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
 	e.Deserialize(restQuery, entity)
-	if err := e.config.DB().Insert(entity); err != nil {
+	if err := e.config.DB().WithContext(restQuery.Context()).Insert(entity); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
 	return entity, nil
@@ -128,7 +128,7 @@ func (e *Engine) executeActionPut(resource *Resource, restQuery *RestQuery) (int
 	entity := elem.Addr().Interface()
 	e.Deserialize(restQuery, entity)
 	setPk(resource.ResourceType(), elem, restQuery.Key)
-	if err := e.config.DB().Update(entity); err != nil {
+	if err := e.config.DB().WithContext(restQuery.Context()).Update(entity); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
 	return entity, nil
@@ -147,7 +147,7 @@ func (e *Engine) executeActionPatch(resource *Resource, restQuery *RestQuery) (i
 	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
-	if err := e.config.DB().Update(entity); err != nil {
+	if err := e.config.DB().WithContext(restQuery.Context()).Update(entity); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
 	return entity, nil
@@ -162,7 +162,7 @@ func (e *Engine) executeActionDelete(resource *Resource, restQuery *RestQuery) (
 	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
-	if err := e.config.DB().Delete(entity); err != nil {
+	if err := e.config.DB().WithContext(restQuery.Context()).Delete(entity); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
 	return entity, nil
@@ -174,7 +174,7 @@ func (e *Engine) getOne(resource *Resource, restQuery *RestQuery) (interface{}, 
 	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
-	q := e.config.DB().Model(entity).WherePK()
+	q := e.config.DB().WithContext(restQuery.Context()).Model(entity).WherePK()
 	q = addQueryFields(q, restQuery.Fields)
 	if err := q.Select(); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
@@ -185,7 +185,7 @@ func (e *Engine) getOne(resource *Resource, restQuery *RestQuery) (interface{}, 
 func (e *Engine) getPage(resource *Resource, restQuery *RestQuery) (*Page, error) {
 	sliceType := reflect.MakeSlice(reflect.SliceOf(resource.ResourceType()), 0, 0).Type()
 	entities := reflect.New(sliceType).Interface()
-	q := e.config.DB().Model(entities)
+	q := e.config.DB().WithContext(restQuery.Context()).Model(entities)
 	q = addQueryLimit(q, restQuery.Limit)
 	q = addQueryOffset(q, restQuery.Offset)
 	q = addQueryFields(q, restQuery.Fields)
