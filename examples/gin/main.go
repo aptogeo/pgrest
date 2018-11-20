@@ -4,10 +4,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/aptogeo/pgrest"
 	"github.com/gin-gonic/gin"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	"github.com/mathieumast/pgrest"
 )
 
 // Book struct

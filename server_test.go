@@ -8,7 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/mathieumast/pgrest"
+	"github.com/aptogeo/pgrest"
 	"github.com/stretchr/testify/assert"
 )
 

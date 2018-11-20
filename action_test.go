@@ -3,7 +3,7 @@ package pgrest_test
 import (
 	"testing"
 
-	"github.com/mathieumast/pgrest"
+	"github.com/aptogeo/pgrest"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aptogeo/pgrest"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"github.com/google/uuid"
-	"github.com/mathieumast/pgrest"
 	"github.com/stretchr/testify/assert"
 )
 

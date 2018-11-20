@@ -9,7 +9,7 @@ import (
 
 	"github.com/vmihailenco/msgpack"
 
-	"github.com/mathieumast/pgrest"
+	"github.com/aptogeo/pgrest"
 	"github.com/stretchr/testify/assert"
 )
 

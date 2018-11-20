@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/aptogeo/pgrest"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	"github.com/mathieumast/pgrest"
 )
 
 // Book struct
