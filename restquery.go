@@ -19,6 +19,7 @@ type RestQuery struct {
 	Fields      []*Field
 	Sorts       []*Sort
 	Filter      *Filter
+	Debug       bool
 	ctx         context.Context
 }
 
@@ -50,8 +51,10 @@ func (q *RestQuery) String() string {
 			return fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts, q.Filter)
 		}
 		return fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
+	} else if q.Action == Delete {
+		return fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
 	}
-	return fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
+	return fmt.Sprintf("action=%v resource=%v key=%v content-type=%v content=%v", q.Action, q.Resource, q.Key, q.ContentType, q.Content)
 }
 
 // Field structure
