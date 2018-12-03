@@ -72,9 +72,19 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 		for _, keyValue := range keyValues {
 			parts := strings.Split(keyValue, "=")
 			if parts != nil && len(parts) == 2 {
+				found := false
 				for _, field := range table.Fields {
 					if field.GoName == parts[0] {
 						field.ScanValue(elem, []byte(parts[1]))
+						found = true
+					}
+				}
+				if !found {
+					for _, field := range table.Fields {
+						if field.SQLName == parts[0] {
+							field.ScanValue(elem, []byte(parts[1]))
+							found = true
+						}
 					}
 				}
 			}
