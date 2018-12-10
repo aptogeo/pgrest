@@ -61,11 +61,11 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 	if err != nil {
 		return &Error{Cause: err}
 	}
-	if regexp.MustCompile("[+-/]json($|[+-])").MatchString(restQuery.ContentType) {
+	if regexp.MustCompile("[+-/]json($|[+-;])").MatchString(restQuery.ContentType) {
 		if err := json.Unmarshal(restQuery.Content, entity); err != nil {
 			return &Error{Cause: err}
 		}
-	} else if regexp.MustCompile("[+-/]form($|[+-])").MatchString(restQuery.ContentType) {
+	} else if regexp.MustCompile("[+-/]form($|[+-;])").MatchString(restQuery.ContentType) {
 		table := orm.GetTable(resource.ResourceType())
 		keyValues := strings.Split(string(restQuery.Content), "&")
 		elem := reflect.ValueOf(entity).Elem()

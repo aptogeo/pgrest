@@ -39,7 +39,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		} else if res == nil {
 			http.Error(writer, "resource not found", http.StatusNotFound)
 		} else {
-			serialized, err := s.Serialize(restQuery, res)
+			serialized, contentType, err := s.Serialize(restQuery, res)
 			if err != nil {
 				http.Error(writer, err.Error(), http.StatusInternalServerError)
 			} else {
@@ -56,6 +56,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 				} else {
 					writer.WriteHeader(http.StatusOK)
 				}
+				writer.Header().Add("Content-Type", contentType+"; charset=utf-8")
 				writer.Write(serialized)
 			}
 		}
@@ -69,11 +70,13 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 }
 
 // Serialize serializes data into entity
-func (s *Server) Serialize(restQuery *RestQuery, entity interface{}) ([]byte, error) {
-	if regexp.MustCompile("[+-/]json($|[+-])").MatchString(restQuery.Accept) {
-		return json.Marshal(entity)
-	} else if regexp.MustCompile("[+-/]msgpack($|[+-])").MatchString(restQuery.Accept) {
-		return msgpack.Marshal(entity)
+func (s *Server) Serialize(restQuery *RestQuery, entity interface{}) ([]byte, string, error) {
+	if regexp.MustCompile("[+-/]json($|[+-;])").MatchString(restQuery.Accept) {
+		data, err := json.Marshal(entity)
+		return data, "application/json", err
+	} else if regexp.MustCompile("[+-/]msgpack($|[+-;])").MatchString(restQuery.Accept) {
+		data, err := msgpack.Marshal(entity)
+		return data, "application/msgpack", err
 	}
-	return nil, NewErrorBadRequest(fmt.Sprintf("Unknown accept '%v'", restQuery.Accept))
+	return nil, "plain/text", NewErrorBadRequest(fmt.Sprintf("Unknown accept '%v'", restQuery.Accept))
 }
