@@ -36,6 +36,10 @@ const (
 	Ilkua Op = "ilkua"
 	// Nilkua operation for attribute (? NOT ILIKE ? WITH UNACCENT)
 	Nilkua Op = "nilkua"
+	// Null operation for attribute (? IS NULL)
+	Null Op = "null"
+	// Nnull operation for attribute (? IS NOT NULL)
+	Nnull Op = "nnull"
 )
 
 func (o Op) String() string {

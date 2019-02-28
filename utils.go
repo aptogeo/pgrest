@@ -96,7 +96,7 @@ func addQueryFilter(query *orm.Query, filter *Filter, parentGroupOp Op) *orm.Que
 	case Lk:
 		return addWhere(query, "? LIKE ?", filter.Attr, filter.Value, parentGroupOp)
 	case Nlk:
-		return addWhere(query, " NOT LIKE ?", filter.Attr, filter.Value, parentGroupOp)
+		return addWhere(query, "? NOT LIKE ?", filter.Attr, filter.Value, parentGroupOp)
 	case Ilk:
 		return addWhere(query, "? ILIKE ?", filter.Attr, filter.Value, parentGroupOp)
 	case Nilk:
@@ -109,6 +109,10 @@ func addQueryFilter(query *orm.Query, filter *Filter, parentGroupOp Op) *orm.Que
 		return addWhere(query, "unaccent(?) ILIKE unaccent(?)", filter.Attr, filter.Value, parentGroupOp)
 	case Nilkua:
 		return addWhere(query, "unaccent(?) NOT ILIKE unaccent(?)", filter.Attr, filter.Value, parentGroupOp)
+	case Null:
+		return addWhere(query, "? IS NULL", filter.Attr, "", parentGroupOp)
+	case Nnull:
+		return addWhere(query, "? IS NOT NULL", filter.Attr, "", parentGroupOp)
 	default:
 		return query
 	}
