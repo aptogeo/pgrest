@@ -32,6 +32,10 @@ const (
 	Sim Op = "sim"
 	// Nsim operation for attribute (? NOT SIMILAR TO ?)
 	Nsim Op = "nsim"
+	// Ilkua operation for attribute (? ILIKE ? WITH UNACCENT)
+	Ilkua Op = "ilkua"
+	// Nilkua operation for attribute (? NOT ILIKE ? WITH UNACCENT)
+	Nilkua Op = "nilkua"
 )
 
 func (o Op) String() string {

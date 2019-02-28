@@ -105,6 +105,10 @@ func addQueryFilter(query *orm.Query, filter *Filter, parentGroupOp Op) *orm.Que
 		return addWhere(query, "? SIMILAR TO ?", filter.Attr, filter.Value, parentGroupOp)
 	case Nsim:
 		return addWhere(query, "? NOT SIMILAR TO ?", filter.Attr, filter.Value, parentGroupOp)
+	case Ilkua:
+		return addWhere(query, "unaccent(?) ILIKE unaccent(?)", filter.Attr, filter.Value, parentGroupOp)
+	case Nilkua:
+		return addWhere(query, "unaccent(?) NOT ILIKE unaccent(?)", filter.Attr, filter.Value, parentGroupOp)
 	default:
 		return query
 	}
