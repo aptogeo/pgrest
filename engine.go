@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-pg/pg/orm"
+	"github.com/go-pg/pg/types"
 	"github.com/vmihailenco/msgpack"
 )
 
@@ -75,14 +76,14 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 				found := false
 				for _, field := range table.Fields {
 					if field.GoName == parts[0] {
-						field.ScanValue(elem, []byte(parts[1]))
+						field.ScanValue(elem, types.NewBytesReader([]byte(parts[1])), len(parts[1]))
 						found = true
 					}
 				}
 				if !found {
 					for _, field := range table.Fields {
 						if field.SQLName == parts[0] {
-							field.ScanValue(elem, []byte(parts[1]))
+							field.ScanValue(elem, types.NewBytesReader([]byte(parts[1])), len(parts[1]))
 							found = true
 						}
 					}

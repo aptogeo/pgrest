@@ -1,6 +1,7 @@
 package pgrest_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -16,7 +17,7 @@ type Todo struct {
 	Text string
 }
 
-func (t *Todo) BeforeInsert(db orm.DB) error {
+func (t *Todo) BeforeInsert(c context.Context, db orm.DB) error {
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
 	}
@@ -40,8 +41,8 @@ type Author struct {
 
 func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	db := pg.Connect(&pg.Options{
-		User:               "postgres",
-		Password:           "postgres",
+		User:               "alacarte",
+		Password:           "alacarte",
 		IdleCheckFrequency: 100 * time.Millisecond,
 	})
 	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil), (*Todo)(nil)} {
