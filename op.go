@@ -12,6 +12,10 @@ const (
 	Eq Op = "eq"
 	// Neq operation for attribute (? != ?)
 	Neq Op = "neq"
+	// In operation for attribute (? IN ?)
+	In Op = "in"
+	// Nin operation for attribute (? NOT IN ?)
+	Nin Op = "nin"
 	// Gt operation for attribute (? > ?)
 	Gt Op = "gt"
 	// Gte operation for attribute (? >= ?)

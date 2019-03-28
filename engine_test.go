@@ -148,6 +148,12 @@ func TestPostPatchGetDelete(t *testing.T) {
 	page = *res.(*pgrest.Page)
 	assert.Equal(t, page.Count, 4)
 
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Filter: &pgrest.Filter{Op: pgrest.In, Attr: "firstname", Value: []string{"Antoine", "Franz"}}})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	page = *res.(*pgrest.Page)
+	assert.Equal(t, page.Count, 2)
+
 	_, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Delete, Resource: "Author", Key: "1"})
 	assert.Nil(t, err)
 	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author"})

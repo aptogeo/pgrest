@@ -24,7 +24,7 @@ func NewEngine(config *Config) *Engine {
 	return e
 }
 
-// Config execugets config
+// Config gets config
 func (e *Engine) Config() *Config {
 	return e.config
 }

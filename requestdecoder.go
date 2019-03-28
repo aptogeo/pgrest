@@ -12,7 +12,7 @@ import (
 
 // RequestDecoder decodes rest parameters from request
 func RequestDecoder(request *http.Request, config *Config) *RestQuery {
-	re := regexp.MustCompile("(" + config.Prefix() + ")(\\w+)/?(\\w+)?/?(\\w+)?")
+	re := regexp.MustCompile("(" + config.Prefix() + ")([^/\\?]+)/?([^/\\?]+)?/?([^/\\?]+)?")
 	res := re.FindStringSubmatch(request.RequestURI)
 	action := None
 	if request.Method == "GET" {

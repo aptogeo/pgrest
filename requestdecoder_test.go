@@ -26,6 +26,7 @@ var requestDecoderTests = []struct {
 	expected *pgrest.RestQuery
 }{
 	{"/rest/User/1", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1"}},
+	{"/rest/User/445cf124-f5e6-4fd3-9f0d-d22bd6c90d40", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "445cf124-f5e6-4fd3-9f0d-d22bd6c90d40"}},
 	{"/rest/User/1?fields=*,Roles", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Key: "1", Offset: 0, Limit: 10, Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}, &pgrest.Field{Name: "Roles"}}}},
 	{"/rest/User", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 0, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{}, Filter: &pgrest.Filter{}}},
 	{"/rest/User?offset=50&limit=10&sort=lastname,-firstname", "GET", &pgrest.RestQuery{Action: pgrest.Get, Resource: "User", Offset: 50, Limit: 10, Fields: []*pgrest.Field{}, Sorts: []*pgrest.Sort{&pgrest.Sort{Name: "lastname", Asc: true}, &pgrest.Sort{Name: "firstname", Asc: false}}, Filter: &pgrest.Filter{}}},

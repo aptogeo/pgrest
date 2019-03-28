@@ -81,10 +81,10 @@ func (s *Sort) String() string {
 
 // Filter structure
 type Filter struct {
-	Op      Op        // operation
-	Attr    string    // attribute name
-	Value   string    // attribute value
-	Filters []*Filter // sub filters for 'and', 'or' and 'not' operation
+	Op      Op          // operation
+	Attr    string      // attribute name
+	Value   interface{} // attribute value
+	Filters []*Filter   // sub filters for 'and', 'or' and 'not' operation
 }
 
 func (f *Filter) String() string {
