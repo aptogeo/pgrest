@@ -1,6 +1,7 @@
 package pgrest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -62,6 +63,9 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 	if err != nil {
 		return &Error{Cause: err}
 	}
+	if restQuery.Debug {
+		fmt.Printf("Deserialize %v\n", string(restQuery.Content[:]))
+	}
 	if regexp.MustCompile("[+-/]json($|[+-;])").MatchString(restQuery.ContentType) {
 		if err := json.Unmarshal(restQuery.Content, entity); err != nil {
 			return &Error{Cause: err}
@@ -90,12 +94,17 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 				}
 			}
 		}
-	} else if regexp.MustCompile("[+-/]msgpack($|[+-])").MatchString(restQuery.ContentType) {
-		if err := msgpack.Unmarshal(restQuery.Content, entity); err != nil {
+	} else if regexp.MustCompile("[+-/](msgpack|messagepack)($|[+-])").MatchString(restQuery.ContentType) {
+		decoder := msgpack.NewDecoder(bytes.NewReader(restQuery.Content))
+		decoder.UseJSONTag(true)
+		if err := decoder.Decode(entity); err != nil {
 			return &Error{Cause: err}
 		}
 	} else {
 		return NewErrorBadRequest(fmt.Sprintf("Unknown content type '%v'", restQuery.ContentType))
+	}
+	if restQuery.Debug {
+		fmt.Printf("Deserialized entity %v\n", entity)
 	}
 	return nil
 }
@@ -124,7 +133,9 @@ func (e *Engine) executeActionPost(resource *Resource, restQuery *RestQuery) (in
 	}
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
-	e.Deserialize(restQuery, entity)
+	if err := e.Deserialize(restQuery, entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
 	if err := e.config.DB().WithContext(restQuery.Context()).Insert(entity); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
@@ -137,7 +148,9 @@ func (e *Engine) executeActionPut(resource *Resource, restQuery *RestQuery) (int
 	}
 	elem := reflect.New(resource.ResourceType()).Elem()
 	entity := elem.Addr().Interface()
-	e.Deserialize(restQuery, entity)
+	if err := e.Deserialize(restQuery, entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
 	setPk(resource.ResourceType(), elem, restQuery.Key)
 	if err := e.config.DB().WithContext(restQuery.Context()).Update(entity); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
@@ -153,7 +166,9 @@ func (e *Engine) executeActionPatch(resource *Resource, restQuery *RestQuery) (i
 	if err != nil {
 		return nil, NewErrorFromCause(restQuery, err)
 	}
-	e.Deserialize(restQuery, entity)
+	if err := e.Deserialize(restQuery, entity); err != nil {
+		return nil, NewErrorFromCause(restQuery, err)
+	}
 	elem := reflect.ValueOf(entity).Elem()
 	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
 		return nil, NewErrorFromCause(restQuery, err)

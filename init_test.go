@@ -36,13 +36,14 @@ type Author struct {
 	ID        int
 	Firstname string
 	Lastname  string
+	Picture   []byte `sql:",type:bytea"`
 	Books     []*Book
 }
 
 func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	db := pg.Connect(&pg.Options{
-		User:               "alacarte",
-		Password:           "alacarte",
+		User:               "postgres",
+		Password:           "postgres",
 		IdleCheckFrequency: 100 * time.Millisecond,
 	})
 	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil), (*Todo)(nil)} {

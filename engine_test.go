@@ -203,7 +203,7 @@ func TestMsgpack(t *testing.T) {
 	var res interface{}
 	var resAuthor *Author
 
-	resAuthor = &Author{Firstname: "MsgpackFirstname", Lastname: "MsgpackLastname"}
+	resAuthor = &Author{Firstname: "MsgpackFirstname", Lastname: "MsgpackLastname", Picture: []byte{187, 163, 35, 30}}
 	content, err = msgpack.Marshal(resAuthor)
 	assert.Nil(t, err)
 
@@ -214,4 +214,5 @@ func TestMsgpack(t *testing.T) {
 	assert.NotEqual(t, resAuthor.ID, 0)
 	assert.Equal(t, resAuthor.Firstname, "MsgpackFirstname")
 	assert.Equal(t, resAuthor.Lastname, "MsgpackLastname")
+	assert.Equal(t, resAuthor.Picture, []byte{187, 163, 35, 30})
 }

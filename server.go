@@ -1,6 +1,7 @@
 package pgrest
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -33,6 +34,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if restQuery != nil {
 		res, err := s.Execute(restQuery)
 		if err != nil {
+			println(err)
 			if cerr, ok := err.(*Error); ok {
 				http.Error(writer, cerr.Error(), cerr.StatusCode())
 			}
@@ -56,7 +58,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 				} else {
 					writer.WriteHeader(http.StatusOK)
 				}
-				writer.Header().Add("Content-Type", contentType+"; charset=utf-8")
+				writer.Header().Add("Content-Type", contentType)
 				writer.Write(serialized)
 			}
 		}
@@ -71,12 +73,26 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 
 // Serialize serializes data into entity
 func (s *Server) Serialize(restQuery *RestQuery, entity interface{}) ([]byte, string, error) {
+	var contentType string
+	var data []byte
+	var err error
 	if regexp.MustCompile("[+-/]json($|[+-;])").MatchString(restQuery.Accept) {
-		data, err := json.Marshal(entity)
-		return data, "application/json", err
+		data, err = json.Marshal(entity)
+		contentType = "application/json; charset=utf-8"
 	} else if regexp.MustCompile("[+-/]msgpack($|[+-;])").MatchString(restQuery.Accept) {
-		data, err := msgpack.Marshal(entity)
-		return data, "application/msgpack", err
+		var buf bytes.Buffer
+		encoder := msgpack.NewEncoder(&buf)
+		encoder.UseJSONTag(true)
+		encoder.UseCompactEncoding(true)
+		err = encoder.Encode(entity)
+		data = buf.Bytes()
+		contentType = "application/x-msgpack"
+	} else {
+		err = NewErrorBadRequest(fmt.Sprintf("Unknown accept '%v'", restQuery.Accept))
+		contentType = "plain/text; charset=utf-8"
 	}
-	return nil, "plain/text", NewErrorBadRequest(fmt.Sprintf("Unknown accept '%v'", restQuery.Accept))
+	if restQuery.Debug {
+		fmt.Printf("Serialized response %v\n", string(data[:]))
+	}
+	return data, contentType, err
 }
