@@ -2,7 +2,6 @@ package pgrest
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -85,7 +84,6 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 
 		if debug, err := strconv.ParseBool(params.Get("debug")); err == nil {
 			restQuery.Debug = debug
-			fmt.Printf("Request in debug %v\n", restQuery)
 		}
 
 		return restQuery.WithContext(request.Context())

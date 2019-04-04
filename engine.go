@@ -32,6 +32,9 @@ func (e *Engine) Config() *Config {
 
 // Execute executes a rest query
 func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
+	if restQuery.Debug {
+		e.Config().InfoLogger().Printf("Execute request %v\n", restQuery)
+	}
 	if restQuery.Resource == "" {
 		return nil, NewErrorBadRequest("resource is mandatory")
 	}
@@ -62,9 +65,6 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 	resource, err := e.getResource(restQuery)
 	if err != nil {
 		return &Error{Cause: err}
-	}
-	if restQuery.Debug {
-		fmt.Printf("Deserialize %v\n", string(restQuery.Content[:]))
 	}
 	if regexp.MustCompile("[+-/]json($|[+-;])").MatchString(restQuery.ContentType) {
 		if err := json.Unmarshal(restQuery.Content, entity); err != nil {
@@ -104,7 +104,7 @@ func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
 		return NewErrorBadRequest(fmt.Sprintf("Unknown content type '%v'", restQuery.ContentType))
 	}
 	if restQuery.Debug {
-		fmt.Printf("Deserialized entity %v\n", entity)
+		e.Config().InfoLogger().Printf("Serialized response in %v: %v\n", restQuery.ContentType, entity)
 	}
 	return nil
 }

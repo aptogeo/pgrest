@@ -34,15 +34,17 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if restQuery != nil {
 		res, err := s.Execute(restQuery)
 		if err != nil {
-			println(err)
+			s.Config().ErrorLogger().Printf("%v\n", err.Error())
 			if cerr, ok := err.(*Error); ok {
 				http.Error(writer, cerr.Error(), cerr.StatusCode())
 			}
 		} else if res == nil {
-			http.Error(writer, "resource not found", http.StatusNotFound)
+			s.Config().ErrorLogger().Printf("Resource not found\n")
+			http.Error(writer, "Resource not found", http.StatusNotFound)
 		} else {
 			serialized, contentType, err := s.Serialize(restQuery, res)
 			if err != nil {
+				s.Config().ErrorLogger().Printf("%v\n", err.Error())
 				http.Error(writer, err.Error(), http.StatusInternalServerError)
 			} else {
 				if restQuery.Action == Get {
@@ -66,6 +68,7 @@ func (s *Server) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		if s.next != nil {
 			s.next.ServeHTTP(writer, request)
 		} else {
+			s.Config().ErrorLogger().Printf("Request %v isn't rest request\n", restQuery)
 			http.Error(writer, "Request isn't rest request", http.StatusInternalServerError)
 		}
 	}
@@ -90,9 +93,6 @@ func (s *Server) Serialize(restQuery *RestQuery, entity interface{}) ([]byte, st
 	} else {
 		err = NewErrorBadRequest(fmt.Sprintf("Unknown accept '%v'", restQuery.Accept))
 		contentType = "plain/text; charset=utf-8"
-	}
-	if restQuery.Debug {
-		fmt.Printf("Serialized response %v\n", string(data[:]))
 	}
 	return data, contentType, err
 }

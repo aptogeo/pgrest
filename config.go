@@ -1,6 +1,8 @@
 package pgrest
 
 import (
+	"log"
+	"os"
 	"reflect"
 	"strings"
 
@@ -50,6 +52,8 @@ type Config struct {
 	resources          map[string]*Resource
 	defaultContentType string
 	defaultAccept      string
+	infoLogger         *log.Logger
+	errorLogger        *log.Logger
 }
 
 // AddResource adds resource
@@ -101,6 +105,26 @@ func (c *Config) DB() *pg.DB {
 	return c.db
 }
 
+// SetInfoLogger sets info logger
+func (c *Config) SetInfoLogger(logger *log.Logger) {
+	c.infoLogger = logger
+}
+
+// InfoLogger gets info logger
+func (c *Config) InfoLogger() *log.Logger {
+	return c.infoLogger
+}
+
+// SetErrorLogger sets error logger
+func (c *Config) SetErrorLogger(logger *log.Logger) {
+	c.errorLogger = logger
+}
+
+// ErrorLogger gets error logger
+func (c *Config) ErrorLogger() *log.Logger {
+	return c.errorLogger
+}
+
 // NewConfig constructs Config
 func NewConfig(prefix string, db *pg.DB) *Config {
 	c := new(Config)
@@ -109,5 +133,7 @@ func NewConfig(prefix string, db *pg.DB) *Config {
 	c.resources = make(map[string]*Resource)
 	c.defaultContentType = "application/json"
 	c.defaultAccept = "application/json"
+	c.infoLogger = log.New(os.Stdout, " INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+	c.errorLogger = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
 	return c
 }
