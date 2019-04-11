@@ -82,6 +82,14 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			json.Unmarshal([]byte(filterStr), restQuery.Filter)
 		}
 
+		restQuery.SearchPath = strings.TrimSpace(params.Get("searchpath"))
+		if restQuery.SearchPath == "" {
+			restQuery.SearchPath = strings.TrimSpace(params.Get("searchPath"))
+		}
+		if restQuery.SearchPath == "" {
+			restQuery.SearchPath = strings.TrimSpace(params.Get("search_path"))
+		}
+
 		if debug, err := strconv.ParseBool(params.Get("debug")); err == nil {
 			restQuery.Debug = debug
 		}

@@ -3,10 +3,13 @@ package pgrest
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/go-pg/pg"
 
 	"github.com/go-pg/pg/orm"
 	"github.com/go-pg/pg/types"
@@ -32,6 +35,11 @@ func (e *Engine) Config() *Config {
 
 // Execute executes a rest query
 func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
+	searchPath, _ := e.getSearchPath()
+	if restQuery.SearchPath != "" {
+		e.setSearchPath(restQuery.SearchPath)
+		defer e.setSearchPath(searchPath)
+	}
 	if restQuery.Debug {
 		e.Config().InfoLogger().Printf("Execute request %v\n", restQuery)
 	}
@@ -115,6 +123,8 @@ func (e *Engine) getResource(restQuery *RestQuery) (*Resource, error) {
 	}
 	resource := e.config.GetResource(restQuery.Resource)
 	if resource == nil {
+		e.Config().ErrorLogger().Printf("Resource '%v' not defined in engine configuration", restQuery.Resource)
+		e.Config().ErrorLogger().Printf("Configuration: '%v'", e.config)
 		return nil, NewErrorBadRequest(fmt.Sprintf("resource '%v' not defined in engine configuration", restQuery.Resource))
 	}
 	return resource, nil
@@ -228,4 +238,23 @@ func (e *Engine) getPage(resource *Resource, restQuery *RestQuery) (*Page, error
 		return nil, NewErrorFromCause(restQuery, err)
 	}
 	return NewPage(entities, count, restQuery), nil
+}
+
+func (e *Engine) getSearchPath() (string, error) {
+	var searchPath string
+	_, err := e.config.DB().QueryOne(pg.Scan(&searchPath), "SHOW search_path")
+	if err != nil {
+		return "", err
+	}
+	searchPath = strings.Replace(searchPath, "\"\"", "\"", -1)
+	searchPath = strings.Replace(searchPath, "\"\"", "\"", -1)
+	return searchPath, nil
+}
+
+func (e *Engine) setSearchPath(searchPath string) error {
+	if searchPath == "" {
+		return errors.New("Emty searchPath")
+	}
+	_, err := e.config.DB().Exec("SET search_path = ?", searchPath)
+	return err
 }

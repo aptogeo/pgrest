@@ -19,6 +19,7 @@ type RestQuery struct {
 	Fields      []*Field
 	Sorts       []*Sort
 	Filter      *Filter
+	SearchPath  string
 	Debug       bool
 	ctx         context.Context
 }
@@ -46,15 +47,21 @@ func (q *RestQuery) WithContext(ctx context.Context) *RestQuery {
 }
 
 func (q *RestQuery) String() string {
+	var str string
 	if q.Action == Get {
 		if q.Key == "" {
-			return fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts, q.Filter)
+			str = fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts, q.Filter)
 		}
-		return fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
+		str = fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
 	} else if q.Action == Delete {
-		return fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
+		str = fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
+	} else {
+		str = fmt.Sprintf("action=%v resource=%v key=%v content-type=%v content=%v", q.Action, q.Resource, q.Key, q.ContentType, q.Content)
 	}
-	return fmt.Sprintf("action=%v resource=%v key=%v content-type=%v content=%v", q.Action, q.Resource, q.Key, q.ContentType, q.Content)
+	if q.SearchPath != "" {
+		str += fmt.Sprintf(" search_path=%v", q.SearchPath)
+	}
+	return str
 }
 
 // Field structure

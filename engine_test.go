@@ -216,3 +216,36 @@ func TestMsgpack(t *testing.T) {
 	assert.Equal(t, resAuthor.Lastname, "MsgpackLastname")
 	assert.Equal(t, resAuthor.Picture, []byte{187, 163, 35, 30})
 }
+
+func TestSchema(t *testing.T) {
+	db, config := initTests(t)
+	defer db.Close()
+	engine := pgrest.NewEngine(config)
+
+	var err error
+	var content []byte
+	var res interface{}
+	var page pgrest.Page
+	// var resTodo *Todo
+	var resAuthor *Author
+	// var resAuthors []Author
+	// var resBook *Book
+
+	for _, author := range authors {
+		content, err = json.Marshal(author)
+		assert.Nil(t, err)
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Author", ContentType: "application/json", Content: content, SearchPath: "public"})
+		assert.Nil(t, err)
+		assert.NotNil(t, res)
+		resAuthor = res.(*Author)
+		assert.NotEqual(t, resAuthor.ID, 0)
+		assert.Equal(t, resAuthor.Firstname, author.Firstname)
+		assert.Equal(t, resAuthor.Lastname, author.Lastname)
+	}
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author"})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	page = *res.(*pgrest.Page)
+	assert.Equal(t, page.Count, 3)
+}

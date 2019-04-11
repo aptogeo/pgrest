@@ -1,6 +1,7 @@
 package pgrest
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"reflect"
@@ -15,6 +16,12 @@ type Resource struct {
 	name         string
 	resourceType reflect.Type
 	action       Action
+}
+
+func (r *Resource) String() string {
+	var str string
+	str = fmt.Sprintf("name=%v resourceType=%v action=%v", r.name, r.resourceType, r.action)
+	return str
 }
 
 // Name returns name
@@ -56,8 +63,15 @@ type Config struct {
 	errorLogger        *log.Logger
 }
 
+func (c *Config) String() string {
+	var str string
+	str = fmt.Sprintf("resources=%v", c.resources)
+	return str
+}
+
 // AddResource adds resource
 func (c *Config) AddResource(resource *Resource) {
+	c.InfoLogger().Printf("Register resource %v\n", resource)
 	c.resources[resource.Name()] = resource
 }
 
