@@ -40,6 +40,10 @@ type Author struct {
 	Books     []*Book
 }
 
+type PageOnly struct {
+	NbPages int
+}
+
 func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	db := pg.Connect(&pg.Options{
 		User:               "postgres",

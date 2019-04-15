@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/go-pg/pg"
 	"github.com/google/uuid"
 
 	"github.com/vmihailenco/msgpack"
@@ -15,7 +16,8 @@ import (
 
 func TestDeserialize(t *testing.T) {
 	config := pgrest.NewConfig("/rest/", nil)
-	config.AddResource(pgrest.NewResource("Book", (*Book)(nil), pgrest.All))
+	resource := pgrest.NewResource("Book", (*Book)(nil), pgrest.All)
+	config.AddResource(resource)
 	engine := pgrest.NewEngine(config)
 
 	var err error
@@ -23,28 +25,44 @@ func TestDeserialize(t *testing.T) {
 	var book *Book
 
 	book = &Book{}
-	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/json", Content: []byte("{\"Title\":\"a title\",\"NbPages\":520,\"UnknownField\":\"UnknownField\"}")}, book)
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/json", Content: []byte("{\"Title\":\"a title\",\"NbPages\":520,\"UnknownField\":\"UnknownField\"}")}, resource, book)
 	assert.Nil(t, err)
 	assert.NotNil(t, book)
 	assert.Equal(t, book.Title, "a title")
 	assert.Equal(t, book.NbPages, 520)
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/json", Content: []byte("{\"NbPages\":230}")}, resource, book)
+	assert.Nil(t, err)
+	assert.NotNil(t, book)
+	assert.Equal(t, book.Title, "a title")
+	assert.Equal(t, book.NbPages, 230)
 
 	book = &Book{}
-	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-www-form-urlencoded", Content: []byte("Title=another title&NbPages=310&UnknownField=UnknownField")}, book)
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-www-form-urlencoded", Content: []byte("Title=another title&NbPages=310&UnknownField=UnknownField")}, resource, book)
 	assert.Nil(t, err)
 	assert.NotNil(t, book)
 	assert.Equal(t, book.Title, "another title")
 	assert.Equal(t, book.NbPages, 310)
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-www-form-urlencoded", Content: []byte("NbPages=450")}, resource, book)
+	assert.Nil(t, err)
+	assert.NotNil(t, book)
+	assert.Equal(t, book.Title, "another title")
+	assert.Equal(t, book.NbPages, 450)
 
-	book = &Book{Title: "msgpack title", NbPages: 480}
-	content, err = msgpack.Marshal(book)
+	content, err = msgpack.Marshal(&Book{Title: "msgpack title", NbPages: 480})
 	assert.Nil(t, err)
 	book = &Book{}
-	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-msgpack", Content: content}, book)
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-msgpack", Content: content}, resource, book)
 	assert.Nil(t, err)
 	assert.NotNil(t, book)
 	assert.Equal(t, book.Title, "msgpack title")
 	assert.Equal(t, book.NbPages, 480)
+	content, err = msgpack.Marshal(&PageOnly{NbPages: 110})
+	assert.Nil(t, err)
+	err = engine.Deserialize(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Book", ContentType: "application/x-msgpack", Content: content}, resource, book)
+	assert.Nil(t, err)
+	assert.NotNil(t, book)
+	assert.Equal(t, book.Title, "msgpack title")
+	assert.Equal(t, book.NbPages, 110)
 }
 
 func TestPostPatchGetDelete(t *testing.T) {
@@ -217,35 +235,51 @@ func TestMsgpack(t *testing.T) {
 	assert.Equal(t, resAuthor.Picture, []byte{187, 163, 35, 30})
 }
 
-func TestSchema(t *testing.T) {
-	db, config := initTests(t)
+func TestSearchPath(t *testing.T) {
+	db, _ := initTests(t)
 	defer db.Close()
-	engine := pgrest.NewEngine(config)
 
-	var err error
-	var content []byte
-	var res interface{}
-	var page pgrest.Page
-	// var resTodo *Todo
-	var resAuthor *Author
-	// var resAuthors []Author
-	// var resBook *Book
+	var searchPathTx1 string
+	var searchPathTx2 string
+	var searchPathDB string
 
-	for _, author := range authors {
-		content, err = json.Marshal(author)
-		assert.Nil(t, err)
-		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Post, Resource: "Author", ContentType: "application/json", Content: content, SearchPath: "public"})
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		resAuthor = res.(*Author)
-		assert.NotEqual(t, resAuthor.ID, 0)
-		assert.Equal(t, resAuthor.Firstname, author.Firstname)
-		assert.Equal(t, resAuthor.Lastname, author.Lastname)
-	}
-
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author"})
+	tx1, err := db.Begin()
 	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count, 3)
+
+	_, err = db.QueryOne(pg.Scan(&searchPathDB), "SHOW search_path")
+	assert.Nil(t, err)
+	assert.Equal(t, "\"$user\", public", searchPathDB)
+
+	tx1.Exec("SET search_path = test1")
+
+	_, err = tx1.QueryOne(pg.Scan(&searchPathTx1), "SHOW search_path")
+	assert.Nil(t, err)
+	assert.Equal(t, "test1", searchPathTx1)
+
+	_, err = db.QueryOne(pg.Scan(&searchPathDB), "SHOW search_path")
+	assert.Nil(t, err)
+	assert.Equal(t, "\"$user\", public", searchPathDB)
+
+	tx2, err := db.Begin()
+	assert.Nil(t, err)
+
+	tx2.Exec("SET search_path = test2")
+
+	_, err = tx2.QueryOne(pg.Scan(&searchPathTx2), "SHOW search_path")
+	assert.Nil(t, err)
+	assert.Equal(t, "test2", searchPathTx2)
+
+	_, err = db.QueryOne(pg.Scan(&searchPathDB), "SHOW search_path")
+	assert.Nil(t, err)
+	assert.Equal(t, "\"$user\", public", searchPathDB)
+
+	err = tx1.Rollback()
+	assert.Nil(t, err)
+
+	err = tx2.Rollback()
+	assert.Nil(t, err)
+
+	_, err = db.QueryOne(pg.Scan(&searchPathDB), "SHOW search_path")
+	assert.Nil(t, err)
+	assert.Equal(t, "\"$user\", public", searchPathDB)
 }

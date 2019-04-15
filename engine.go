@@ -3,13 +3,10 @@ package pgrest
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
-
-	"github.com/go-pg/pg"
 
 	"github.com/go-pg/pg/orm"
 	"github.com/go-pg/pg/types"
@@ -35,45 +32,117 @@ func (e *Engine) Config() *Config {
 
 // Execute executes a rest query
 func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
-	searchPath, _ := e.getSearchPath()
-	if restQuery.SearchPath != "" {
-		e.setSearchPath(restQuery.SearchPath)
-		defer e.setSearchPath(searchPath)
-	}
 	if restQuery.Debug {
-		e.Config().InfoLogger().Printf("Execute request %v\n", restQuery)
-	}
-	if restQuery.Resource == "" {
-		return nil, NewErrorBadRequest("resource is mandatory")
+		e.Config().InfoLogger().Printf("Execution request %v\n", restQuery)
 	}
 	resource, err := e.getResource(restQuery)
 	if err != nil {
 		return nil, &Error{Cause: err}
 	}
-	if restQuery.Action|resource.Action() == None {
-		return nil, &Error{Message: fmt.Sprintf("action query '%v' forbidden: resource action is '%v'", restQuery.Action, resource.Action()), Code: 403}
+	var entity interface{}
+	var elem reflect.Value
+	if restQuery.Action == Get {
+		if restQuery.Key != "" {
+			elem = reflect.New(resource.ResourceType()).Elem()
+			entity = elem.Addr().Interface()
+			if err = setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
+				return nil, NewErrorFromCause(restQuery, err)
+			}
+		} else {
+			sliceType := reflect.MakeSlice(reflect.SliceOf(resource.ResourceType()), 0, 0).Type()
+			entity = reflect.New(sliceType).Interface()
+		}
+	} else if restQuery.Action == Post {
+		if restQuery.Key != "" {
+			return nil, NewErrorBadRequest("action 'Post': key is forbidden")
+		}
+		elem = reflect.New(resource.ResourceType()).Elem()
+		entity = elem.Addr().Interface()
+		if err = e.Deserialize(restQuery, resource, entity); err != nil {
+			return nil, NewErrorFromCause(restQuery, err)
+		}
+	} else if restQuery.Action == Put {
+		if restQuery.Key == "" {
+			return nil, NewErrorBadRequest("action 'Put': key is mandatory")
+		}
+		elem = reflect.New(resource.ResourceType()).Elem()
+		entity = elem.Addr().Interface()
+		if err = e.Deserialize(restQuery, resource, entity); err != nil {
+			return nil, NewErrorFromCause(restQuery, err)
+		}
+		setPk(resource.ResourceType(), elem, restQuery.Key)
+	} else if restQuery.Action == Patch {
+		if restQuery.Key == "" {
+			return nil, NewErrorBadRequest("action 'Patch': key is mandatory")
+		}
+		elem = reflect.New(resource.ResourceType()).Elem()
+		entity = elem.Addr().Interface()
+		if err = setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
+			return nil, NewErrorFromCause(restQuery, err)
+		}
+	} else if restQuery.Action == Delete {
+		if restQuery.Key == "" {
+			return nil, NewErrorBadRequest("action 'Delete': key is mandatory")
+		}
+		elem = reflect.New(resource.ResourceType()).Elem()
+		entity = elem.Addr().Interface()
+		if err = setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
+			return nil, NewErrorFromCause(restQuery, err)
+		}
+	} else {
+		return nil, &Error{Message: fmt.Sprintf("unknow action '%v'", restQuery.Action)}
 	}
 
-	if restQuery.Action == Get {
-		return e.executeActionGet(resource, restQuery)
-	} else if restQuery.Action == Post {
-		return e.executeActionPost(resource, restQuery)
-	} else if restQuery.Action == Put {
-		return e.executeActionPut(resource, restQuery)
-	} else if restQuery.Action == Patch {
-		return e.executeActionPatch(resource, restQuery)
-	} else if restQuery.Action == Delete {
-		return e.executeActionDelete(resource, restQuery)
+	executor := NewExecutor(e.Config(), restQuery, entity)
+
+	err = executor.begin()
+	if err != nil {
+		return nil, err
 	}
-	return nil, &Error{Message: fmt.Sprintf("unknow action '%v'", restQuery.Action)}
+	defer executor.rollback()
+
+	if restQuery.Action == Get {
+		if restQuery.Key != "" {
+			err = executor.getOne()
+		} else {
+			err = executor.getSlice()
+		}
+	} else if restQuery.Action == Post {
+		err = executor.executeInsert()
+	} else if restQuery.Action == Put {
+		err = executor.executeUpdate()
+	} else if restQuery.Action == Patch {
+		err = executor.getOne()
+		if err == nil {
+			err = e.Deserialize(restQuery, resource, entity)
+		}
+		if err == nil {
+			err = setPk(resource.ResourceType(), elem, restQuery.Key)
+		}
+		if err == nil {
+			err = executor.executeUpdate()
+		}
+	} else if restQuery.Action == Delete {
+		err = executor.executeDelete()
+	}
+	if err != nil {
+		return nil, err
+	}
+	if restQuery.Debug {
+		e.Config().InfoLogger().Printf("Execution result %v\n", entity)
+	}
+	executor.commit()
+	if err != nil {
+		return nil, err
+	}
+	if restQuery.Action == Get && restQuery.Key == "" {
+		return NewPage(executor.entity, executor.count, restQuery), nil
+	}
+	return executor.entity, nil
 }
 
 // Deserialize deserializes data into entity
-func (e *Engine) Deserialize(restQuery *RestQuery, entity interface{}) error {
-	resource, err := e.getResource(restQuery)
-	if err != nil {
-		return &Error{Cause: err}
-	}
+func (e *Engine) Deserialize(restQuery *RestQuery, resource *Resource, entity interface{}) error {
 	if regexp.MustCompile("[+-/]json($|[+-;])").MatchString(restQuery.ContentType) {
 		if err := json.Unmarshal(restQuery.Content, entity); err != nil {
 			return &Error{Cause: err}
@@ -128,133 +197,4 @@ func (e *Engine) getResource(restQuery *RestQuery) (*Resource, error) {
 		return nil, NewErrorBadRequest(fmt.Sprintf("resource '%v' not defined in engine configuration", restQuery.Resource))
 	}
 	return resource, nil
-}
-
-func (e *Engine) executeActionGet(resource *Resource, restQuery *RestQuery) (interface{}, error) {
-	if restQuery.Key != "" {
-		return e.getOne(resource, restQuery)
-	}
-	return e.getPage(resource, restQuery)
-}
-
-func (e *Engine) executeActionPost(resource *Resource, restQuery *RestQuery) (interface{}, error) {
-	if restQuery.Key != "" {
-		return nil, NewErrorBadRequest("action 'Post': key is forbidden")
-	}
-	elem := reflect.New(resource.ResourceType()).Elem()
-	entity := elem.Addr().Interface()
-	if err := e.Deserialize(restQuery, entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	if err := e.config.DB().WithContext(restQuery.Context()).Insert(entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	return entity, nil
-}
-
-func (e *Engine) executeActionPut(resource *Resource, restQuery *RestQuery) (interface{}, error) {
-	if restQuery.Key == "" {
-		return nil, NewErrorBadRequest("action 'Put': key is mandatory")
-	}
-	elem := reflect.New(resource.ResourceType()).Elem()
-	entity := elem.Addr().Interface()
-	if err := e.Deserialize(restQuery, entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	setPk(resource.ResourceType(), elem, restQuery.Key)
-	if err := e.config.DB().WithContext(restQuery.Context()).Update(entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	return entity, nil
-}
-
-func (e *Engine) executeActionPatch(resource *Resource, restQuery *RestQuery) (interface{}, error) {
-	if restQuery.Key == "" {
-		return nil, NewErrorBadRequest("action 'Patch': key is mandatory")
-	}
-	entity, err := e.getOne(resource, restQuery)
-	if err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	if err := e.Deserialize(restQuery, entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	elem := reflect.ValueOf(entity).Elem()
-	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	if err := e.config.DB().WithContext(restQuery.Context()).Update(entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	return entity, nil
-}
-
-func (e *Engine) executeActionDelete(resource *Resource, restQuery *RestQuery) (interface{}, error) {
-	if restQuery.Key == "" {
-		return nil, NewErrorBadRequest("action 'Delete': key is mandatory")
-	}
-	elem := reflect.New(resource.ResourceType()).Elem()
-	entity := elem.Addr().Interface()
-	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	if err := e.config.DB().WithContext(restQuery.Context()).Delete(entity); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	return entity, nil
-}
-
-func (e *Engine) getOne(resource *Resource, restQuery *RestQuery) (interface{}, error) {
-	elem := reflect.New(resource.ResourceType()).Elem()
-	entity := elem.Addr().Interface()
-	if err := setPk(resource.ResourceType(), elem, restQuery.Key); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	q := e.config.DB().WithContext(restQuery.Context()).Model(entity).WherePK()
-	q = addQueryFields(q, restQuery.Fields)
-	if err := q.Select(); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	return entity, nil
-}
-
-func (e *Engine) getPage(resource *Resource, restQuery *RestQuery) (*Page, error) {
-	sliceType := reflect.MakeSlice(reflect.SliceOf(resource.ResourceType()), 0, 0).Type()
-	entities := reflect.New(sliceType).Interface()
-	q := e.config.DB().WithContext(restQuery.Context()).Model(entities)
-	q = addQueryLimit(q, restQuery.Limit)
-	q = addQueryOffset(q, restQuery.Offset)
-	q = addQueryFields(q, restQuery.Fields)
-	q = addQuerySorts(q, restQuery.Sorts)
-	q = addQueryFilter(q, restQuery.Filter, And)
-	count, err := q.Count()
-	if err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	if count == 0 {
-		return NewPage(nil, 0, restQuery), nil
-	}
-	if err := q.Select(); err != nil {
-		return nil, NewErrorFromCause(restQuery, err)
-	}
-	return NewPage(entities, count, restQuery), nil
-}
-
-func (e *Engine) getSearchPath() (string, error) {
-	var searchPath string
-	_, err := e.config.DB().QueryOne(pg.Scan(&searchPath), "SHOW search_path")
-	if err != nil {
-		return "", err
-	}
-	searchPath = strings.Replace(searchPath, "\"\"", "\"", -1)
-	searchPath = strings.Replace(searchPath, "\"\"", "\"", -1)
-	return searchPath, nil
-}
-
-func (e *Engine) setSearchPath(searchPath string) error {
-	if searchPath == "" {
-		return errors.New("Emty searchPath")
-	}
-	_, err := e.config.DB().Exec("SET search_path = ?", searchPath)
-	return err
 }
