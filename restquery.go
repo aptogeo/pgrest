@@ -51,8 +51,9 @@ func (q *RestQuery) String() string {
 	if q.Action == Get {
 		if q.Key == "" {
 			str = fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts, q.Filter)
+		} else {
+			str = fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
 		}
-		str = fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
 	} else if q.Action == Delete {
 		str = fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
 	} else {
