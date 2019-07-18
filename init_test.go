@@ -17,11 +17,11 @@ type Todo struct {
 	Text string
 }
 
-func (t *Todo) BeforeInsert(c context.Context, db orm.DB) error {
+func (t *Todo) BeforeInsert(c context.Context) (context.Context, error) {
 	if t.ID == uuid.Nil {
 		t.ID = uuid.New()
 	}
-	return nil
+	return c, nil
 }
 
 type Book struct {
