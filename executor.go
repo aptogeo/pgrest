@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/orm"
 )
 
 // Executor structure
@@ -78,7 +79,7 @@ func (e *Executor) setSearchPath(searchPath string) error {
 }
 
 func (e *Executor) getOne() error {
-	q := e.tx.Model(e.entity).WherePK()
+	q := e.tx.ModelContext(e.tx.Context(), e.entity).WherePK()
 	q = addQueryFields(q, e.restQuery.Fields)
 	if err := q.Select(); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
@@ -89,7 +90,7 @@ func (e *Executor) getOne() error {
 
 func (e *Executor) getSlice() error {
 	var err error
-	q := e.tx.Model(e.entity)
+	q := e.tx.ModelContext(e.tx.Context(), e.entity)
 	q = addQueryLimit(q, e.restQuery.Limit)
 	q = addQueryOffset(q, e.restQuery.Offset)
 	q = addQueryFields(q, e.restQuery.Fields)
@@ -109,7 +110,8 @@ func (e *Executor) getSlice() error {
 }
 
 func (e *Executor) executeInsert() error {
-	if err := e.tx.Insert(e.entity); err != nil {
+	q := orm.NewQueryContext(e.tx.Context(), e.tx, e.entity)
+	if _, err := q.Insert(); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}
 	e.count = 1
@@ -117,7 +119,8 @@ func (e *Executor) executeInsert() error {
 }
 
 func (e *Executor) executeUpdate() error {
-	if err := e.tx.Update(e.entity); err != nil {
+	q := orm.NewQueryContext(e.tx.Context(), e.tx, e.entity).WherePK()
+	if _, err := q.Update(); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}
 	e.count = 1
@@ -125,7 +128,8 @@ func (e *Executor) executeUpdate() error {
 }
 
 func (e *Executor) executeDelete() error {
-	if err := e.tx.Delete(e.entity); err != nil {
+	q := orm.NewQueryContext(e.tx.Context(), e.tx, e.entity).WherePK()
+	if _, err := q.Delete(e.entity); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}
 	e.count = 1
