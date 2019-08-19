@@ -6,8 +6,8 @@ import (
 
 	"github.com/aptogeo/pgrest"
 	"github.com/gin-gonic/gin"
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
+	"github.com/go-pg/pg/v9"
+	"github.com/go-pg/pg/v9/orm"
 )
 
 // Book struct

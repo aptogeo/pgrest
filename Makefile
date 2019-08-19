@@ -1,4 +1,4 @@
 all:
-	go get -t ./...
-	go test ./...
-	go test ./... -short -race
+	go get
+	go test
+	go test -short -race

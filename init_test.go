@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/aptogeo/pgrest"
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
+	"github.com/go-pg/pg/v9"
+	"github.com/go-pg/pg/v9/orm"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )

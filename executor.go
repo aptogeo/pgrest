@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
-	"github.com/go-pg/pg"
-	"github.com/go-pg/pg/orm"
+	"github.com/go-pg/pg/v9"
+	"github.com/go-pg/pg/v9/orm"
 )
 
 // Executor structure
@@ -81,6 +81,7 @@ func (e *Executor) setSearchPath(searchPath string) error {
 func (e *Executor) getOne() error {
 	q := e.tx.ModelContext(e.tx.Context(), e.entity).WherePK()
 	q = addQueryFields(q, e.restQuery.Fields)
+	q = addQueryRelations(q, e.restQuery.Relations)
 	if err := q.Select(); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}

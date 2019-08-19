@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/go-pg/pg"
+	"github.com/go-pg/pg/v9"
 	"github.com/google/uuid"
 
-	"github.com/vmihailenco/msgpack"
+	"github.com/vmihailenco/msgpack/v4"
 
 	"github.com/aptogeo/pgrest"
 	"github.com/stretchr/testify/assert"
@@ -132,7 +132,7 @@ func TestPostPatchGetDelete(t *testing.T) {
 	resAuthors = *page.Slice.(*[]Author)
 	assert.Equal(t, len(resAuthors), 3)
 	for _, author := range resAuthors {
-		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}, &pgrest.Field{Name: "Books"}}})
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}}, Relations: []*pgrest.Relation{&pgrest.Relation{Name: "Books"}}})
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 		resAuthor = res.(*Author)

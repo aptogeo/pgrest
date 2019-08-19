@@ -62,6 +62,16 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			}
 		}
 
+		relationsStr := strings.TrimSpace(params.Get("relations"))
+		relationsStrs := strings.Split(relationsStr, ",")
+		restQuery.Relations = make([]*Relation, 0)
+		for _, s := range relationsStrs {
+			st := strings.TrimSpace(s)
+			if st != "" {
+				restQuery.Relations = append(restQuery.Relations, &Relation{st})
+			}
+		}
+
 		sortStr := strings.TrimSpace(params.Get("sort"))
 		sortStrs := strings.Split(sortStr, ",")
 		restQuery.Sorts = make([]*Sort, 0)

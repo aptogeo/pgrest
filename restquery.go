@@ -17,6 +17,7 @@ type RestQuery struct {
 	Offset      int
 	Limit       int
 	Fields      []*Field
+	Relations   []*Relation
 	Sorts       []*Sort
 	Filter      *Filter
 	SearchPath  string
@@ -50,9 +51,9 @@ func (q *RestQuery) String() string {
 	var str string
 	if q.Action == Get {
 		if q.Key == "" {
-			str = fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Sorts, q.Filter)
+			str = fmt.Sprintf("action=%v resource=%v offset=%v limit=%v fields=%v relations=%v sorts=%v filter=%v", q.Action, q.Resource, q.Offset, q.Limit, q.Fields, q.Relations, q.Sorts, q.Filter)
 		} else {
-			str = fmt.Sprintf("action=%v resource=%v key=%v fields=%v", q.Action, q.Resource, q.Key, q.Fields)
+			str = fmt.Sprintf("action=%v resource=%v key=%v fields=%v relations=%v ", q.Action, q.Resource, q.Key, q.Fields, q.Relations)
 		}
 	} else if q.Action == Delete {
 		str = fmt.Sprintf("action=%v resource=%v key=%v", q.Action, q.Resource, q.Key)
@@ -72,6 +73,15 @@ type Field struct {
 
 func (f *Field) String() string {
 	return f.Name
+}
+
+// Relation structure
+type Relation struct {
+	Name string
+}
+
+func (r *Relation) String() string {
+	return r.Name
 }
 
 // Sort structure

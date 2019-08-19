@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-pg/pg/orm"
-	"github.com/go-pg/pg/types"
+	"github.com/go-pg/pg/v9/orm"
+	"github.com/go-pg/pg/v9/types"
 )
 
 func setPk(resourceType reflect.Type, elem reflect.Value, key string) error {
@@ -39,6 +39,19 @@ func addQueryFields(query *orm.Query, fields []*Field) *orm.Query {
 	if len(fields) > 0 {
 		for _, field := range fields {
 			q = q.Column(field.Name)
+		}
+	}
+	return q
+}
+
+func addQueryRelations(query *orm.Query, relations []*Relation) *orm.Query {
+	if relations == nil {
+		return query
+	}
+	q := query
+	if len(relations) > 0 {
+		for _, relation := range relations {
+			q = q.Relation(relation.Name)
 		}
 	}
 	return q

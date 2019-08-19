@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-pg/pg/orm"
-	"github.com/go-pg/pg/types"
-	"github.com/vmihailenco/msgpack"
+	"github.com/go-pg/pg/v9/orm"
+	"github.com/go-pg/pg/v9/types"
+	"github.com/vmihailenco/msgpack/v4"
 )
 
 // Engine structure
