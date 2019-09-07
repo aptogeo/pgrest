@@ -137,7 +137,7 @@ func TestPostPatchGetDelete(t *testing.T) {
 		assert.NotNil(t, res)
 		resAuthor = res.(*Author)
 		assert.Equal(t, resAuthor.ID, author.ID)
-		assert.Equal(t, author.Firstname, author.Firstname)
+		assert.Equal(t, resAuthor.Firstname, author.Firstname)
 		assert.True(t, len(resAuthor.Books) > 0)
 		for _, resBook = range resAuthor.Books {
 			assert.NotNil(t, resBook.Title)
@@ -154,17 +154,31 @@ func TestPostPatchGetDelete(t *testing.T) {
 		}
 	}
 
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}})
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: "1"})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
-	page = *res.(*pgrest.Page)
-	assert.Equal(t, page.Count, 2)
+	resAuthor = res.(*Author)
+	assert.Equal(t, resAuthor.Lastname, "de Saint Exupéry")
+	assert.Equal(t, resAuthor.TransientField, "\"$user\", public")
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: "1", SearchPath: "public, other"})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	resAuthor = res.(*Author)
+	assert.Equal(t, resAuthor.Lastname, "de Saint Exupéry")
+	assert.Equal(t, resAuthor.TransientField, "public, other")
 
 	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{&pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}, &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%ta%"}}}})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)
 	assert.Equal(t, page.Count, 4)
+
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Filter: &pgrest.Filter{Op: pgrest.In, Attr: "firstname", Value: []string{"Antoine", "Franz"}}})
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	page = *res.(*pgrest.Page)
+	assert.Equal(t, page.Count, 2)
 
 	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Filter: &pgrest.Filter{Op: pgrest.In, Attr: "firstname", Value: []string{"Antoine", "Franz"}}})
 	assert.Nil(t, err)

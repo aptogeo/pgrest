@@ -33,11 +33,20 @@ type Book struct {
 }
 
 type Author struct {
-	ID        int
-	Firstname string
-	Lastname  string
-	Picture   []byte `sql:",type:bytea"`
-	Books     []*Book
+	ID             int
+	Firstname      string
+	Lastname       string
+	Picture        []byte `sql:",type:bytea"`
+	Books          []*Book
+	TransientField string `sql:"-"`
+}
+
+func (b *Author) AfterSelect(ctx context.Context) error {
+	tx := pgrest.TxFromContext(ctx)
+	var searchPathDB string
+	tx.QueryOne(pg.Scan(&searchPathDB), "SHOW search_path")
+	b.TransientField = searchPathDB
+	return nil
 }
 
 type PageOnly struct {

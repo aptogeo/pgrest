@@ -26,16 +26,17 @@ func NewExecutor(config *Config, restQuery *RestQuery, entity interface{}) *Exec
 	e.entity = entity
 	e.count = 0
 	e.config = config
-	e.ctx = restQuery.Context()
+	e.ctx = SetDbToContext(restQuery.Context(), e.config.DB())
 	return e
 }
 
 func (e *Executor) begin() error {
 	var err error
-	e.tx, err = e.config.DB().WithContext(e.ctx).Begin()
+	e.tx, err = e.config.DB().Begin()
 	if err != nil {
 		return err
 	}
+	e.ctx = SetTxToContext(e.ctx, e.tx)
 	return e.setSearchPath(e.restQuery.SearchPath)
 }
 
@@ -54,7 +55,7 @@ func (e *Executor) rollback() error {
 func (e *Executor) getSearchPath() (string, error) {
 	var searchPath string
 	var err error
-	_, err = e.tx.QueryOne(pg.Scan(&searchPath), "SHOW search_path")
+	_, err = e.tx.QueryOneContext(e.ctx, pg.Scan(&searchPath), "SHOW search_path")
 	if err != nil {
 		return "", err
 	}
@@ -74,12 +75,12 @@ func (e *Executor) setSearchPath(searchPath string) error {
 			return err
 		}
 	}
-	_, err = e.tx.Exec("SET search_path = " + searchPath)
+	_, err = e.tx.ExecContext(e.ctx, "SET search_path = "+searchPath)
 	return err
 }
 
 func (e *Executor) getOne() error {
-	q := e.tx.ModelContext(e.tx.Context(), e.entity).WherePK()
+	q := e.tx.ModelContext(e.ctx, e.entity).WherePK()
 	q = addQueryFields(q, e.restQuery.Fields)
 	q = addQueryRelations(q, e.restQuery.Relations)
 	if err := q.Select(); err != nil {
@@ -91,7 +92,7 @@ func (e *Executor) getOne() error {
 
 func (e *Executor) getSlice() error {
 	var err error
-	q := e.tx.ModelContext(e.tx.Context(), e.entity)
+	q := e.tx.ModelContext(e.ctx, e.entity)
 	q = addQueryLimit(q, e.restQuery.Limit)
 	q = addQueryOffset(q, e.restQuery.Offset)
 	q = addQueryFields(q, e.restQuery.Fields)
@@ -111,7 +112,7 @@ func (e *Executor) getSlice() error {
 }
 
 func (e *Executor) executeInsert() error {
-	q := orm.NewQueryContext(e.tx.Context(), e.tx, e.entity)
+	q := orm.NewQueryContext(e.ctx, e.tx, e.entity)
 	if _, err := q.Insert(); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}
@@ -120,7 +121,7 @@ func (e *Executor) executeInsert() error {
 }
 
 func (e *Executor) executeUpdate() error {
-	q := orm.NewQueryContext(e.tx.Context(), e.tx, e.entity).WherePK()
+	q := orm.NewQueryContext(e.ctx, e.tx, e.entity).WherePK()
 	if _, err := q.Update(); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}
@@ -129,7 +130,7 @@ func (e *Executor) executeUpdate() error {
 }
 
 func (e *Executor) executeDelete() error {
-	q := orm.NewQueryContext(e.tx.Context(), e.tx, e.entity).WherePK()
+	q := orm.NewQueryContext(e.ctx, e.tx, e.entity).WherePK()
 	if _, err := q.Delete(e.entity); err != nil {
 		return NewErrorFromCause(e.restQuery, err)
 	}
