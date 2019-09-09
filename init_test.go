@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/aptogeo/pgrest"
+	"github.com/aptogeo/pgrest/transactional"
 	"github.com/go-pg/pg/v9"
 	"github.com/go-pg/pg/v9/orm"
 	"github.com/google/uuid"
@@ -42,7 +43,7 @@ type Author struct {
 }
 
 func (b *Author) AfterSelect(ctx context.Context) error {
-	tx := pgrest.TxFromContext(ctx)
+	tx := transactional.TxFromContext(ctx)
 	var searchPathDB string
 	tx.QueryOne(pg.Scan(&searchPathDB), "SHOW search_path")
 	b.TransientField = searchPathDB

@@ -2,12 +2,14 @@ package pgrest
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
+	"github.com/aptogeo/pgrest/transactional"
 	"github.com/go-pg/pg/v9/orm"
 	"github.com/go-pg/pg/v9/types"
 	"github.com/vmihailenco/msgpack/v4"
@@ -93,26 +95,29 @@ func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
 		return nil, &Error{Message: fmt.Sprintf("unknow action '%v'", restQuery.Action)}
 	}
 
-	executor := NewExecutor(e.Config(), restQuery, entity)
-
-	err = executor.begin()
-	if err != nil {
-		return nil, err
+	var ctx context.Context
+	if restQuery.Request != nil {
+		ctx = restQuery.Request.Context()
 	}
-	defer executor.rollback()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = transactional.ContextWithDb(ctx, e.Config().DB())
+
+	executor := NewExecutor(restQuery, entity)
 
 	if restQuery.Action == Get {
 		if restQuery.Key != "" {
-			err = executor.getOne()
+			err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.GetOneExecFunc())
 		} else {
-			err = executor.getSlice()
+			err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.GetSliceExecFunc())
 		}
 	} else if restQuery.Action == Post {
-		err = executor.executeInsert()
+		err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.InsertExecFunc())
 	} else if restQuery.Action == Put {
-		err = executor.executeUpdate()
+		err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.UpdateExecFunc())
 	} else if restQuery.Action == Patch {
-		err = executor.getOne()
+		err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.GetOneExecFunc())
 		if err == nil {
 			err = e.Deserialize(restQuery, resource, entity)
 		}
@@ -120,20 +125,16 @@ func (e *Engine) Execute(restQuery *RestQuery) (interface{}, error) {
 			err = setPk(resource.ResourceType(), elem, restQuery.Key)
 		}
 		if err == nil {
-			err = executor.executeUpdate()
+			err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.UpdateExecFunc())
 		}
 	} else if restQuery.Action == Delete {
-		err = executor.executeDelete()
+		err = executor.ExecuteWithSearchPath(ctx, restQuery.SearchPath, executor.DeleteExecFunc())
 	}
 	if err != nil {
 		return nil, err
 	}
 	if restQuery.Debug {
 		e.Config().InfoLogger().Printf("Execution result %v\n", entity)
-	}
-	executor.commit()
-	if err != nil {
-		return nil, err
 	}
 	if restQuery.Action == Get && restQuery.Key == "" {
 		return NewPage(executor.entity, executor.count, restQuery), nil

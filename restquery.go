@@ -1,13 +1,14 @@
 package pgrest
 
 import (
-	"context"
 	"fmt"
+	"net/http"
 	"strings"
 )
 
 // RestQuery structure
 type RestQuery struct {
+	Request     *http.Request
 	Action      Action
 	Resource    string
 	Key         string
@@ -22,29 +23,6 @@ type RestQuery struct {
 	Filter      *Filter
 	SearchPath  string
 	Debug       bool
-	ctx         context.Context
-}
-
-// Context returns the request's context. To change the context, use
-// WithContext.
-func (q *RestQuery) Context() context.Context {
-	if q.ctx != nil {
-		return q.ctx
-	}
-	return context.Background()
-}
-
-// WithContext returns a shallow copy of q with its context changed
-// to ctx. The provided ctx must be non-nil.
-func (q *RestQuery) WithContext(ctx context.Context) *RestQuery {
-	if ctx == nil {
-		panic("nil context")
-	}
-	q2 := new(RestQuery)
-	*q2 = *q
-	q2.ctx = ctx
-
-	return q2
 }
 
 func (q *RestQuery) String() string {

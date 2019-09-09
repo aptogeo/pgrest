@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 
+	"github.com/aptogeo/pgrest/transactional"
 	"github.com/go-pg/pg/v9"
 	"github.com/go-pg/pg/v9/orm"
 )
@@ -13,49 +14,25 @@ type Executor struct {
 	restQuery          *RestQuery
 	entity             interface{}
 	count              int
-	config             *Config
 	originalSearchPath string
-	ctx                context.Context
-	tx                 *pg.Tx
 }
 
 // NewExecutor constructs Executor
-func NewExecutor(config *Config, restQuery *RestQuery, entity interface{}) *Executor {
+func NewExecutor(restQuery *RestQuery, entity interface{}) *Executor {
 	e := new(Executor)
 	e.restQuery = restQuery
 	e.entity = entity
 	e.count = 0
-	e.config = config
-	e.ctx = SetDbToContext(restQuery.Context(), e.config.DB())
 	return e
 }
 
-func (e *Executor) begin() error {
-	var err error
-	e.tx, err = e.config.DB().Begin()
-	if err != nil {
-		return err
-	}
-	e.ctx = SetTxToContext(e.ctx, e.tx)
-	return e.setSearchPath(e.restQuery.SearchPath)
-}
-
-func (e *Executor) commit() error {
-	err := e.setSearchPath(e.originalSearchPath)
-	if err != nil {
-		return err
-	}
-	return e.tx.Commit()
-}
-
-func (e *Executor) rollback() error {
-	return e.tx.Rollback()
-}
-
-func (e *Executor) getSearchPath() (string, error) {
+func (e *Executor) GetSearchPath(ctx context.Context) (string, error) {
 	var searchPath string
 	var err error
-	_, err = e.tx.QueryOneContext(e.ctx, pg.Scan(&searchPath), "SHOW search_path")
+	ctx, err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		tx.QueryOneContext(ctx, pg.Scan(&searchPath), "SHOW search_path")
+		return ctx, nil
+	})
 	if err != nil {
 		return "", err
 	}
@@ -64,76 +41,97 @@ func (e *Executor) getSearchPath() (string, error) {
 	return searchPath, nil
 }
 
-func (e *Executor) setSearchPath(searchPath string) error {
+func (e *Executor) ExecuteWithSearchPath(ctx context.Context, searchPath string, execFunc transactional.ExecFunc) error {
 	var err error
-	if searchPath == "" {
-		return nil
-	}
 	if e.originalSearchPath == "" {
-		e.originalSearchPath, err = e.getSearchPath()
+		e.originalSearchPath, err = e.GetSearchPath(ctx)
 		if err != nil {
 			return err
 		}
 	}
-	_, err = e.tx.ExecContext(e.ctx, "SET search_path = "+searchPath)
+	ctx, err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		if searchPath != "" {
+			_, err = tx.ExecContext(ctx, "SET search_path = "+searchPath)
+			if err != nil {
+				return ctx, err
+			}
+		}
+		if execFunc != nil {
+			ctx, err = execFunc(ctx, tx)
+		}
+		if searchPath != "" {
+			tx.ExecContext(ctx, "SET search_path = "+e.originalSearchPath)
+		}
+		return ctx, err
+	})
 	return err
 }
 
-func (e *Executor) getOne() error {
-	q := e.tx.ModelContext(e.ctx, e.entity).WherePK()
-	q = addQueryFields(q, e.restQuery.Fields)
-	q = addQueryRelations(q, e.restQuery.Relations)
-	if err := q.Select(); err != nil {
-		return NewErrorFromCause(e.restQuery, err)
+func (e *Executor) GetOneExecFunc() transactional.ExecFunc {
+	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		q := tx.ModelContext(ctx, e.entity).WherePK()
+		q = addQueryFields(q, e.restQuery.Fields)
+		q = addQueryRelations(q, e.restQuery.Relations)
+		if err := q.Select(); err != nil {
+			return ctx, NewErrorFromCause(e.restQuery, err)
+		}
+		e.count = 1
+		return ctx, nil
 	}
-	e.count = 1
-	return nil
 }
 
-func (e *Executor) getSlice() error {
-	var err error
-	q := e.tx.ModelContext(e.ctx, e.entity)
-	q = addQueryLimit(q, e.restQuery.Limit)
-	q = addQueryOffset(q, e.restQuery.Offset)
-	q = addQueryFields(q, e.restQuery.Fields)
-	q = addQuerySorts(q, e.restQuery.Sorts)
-	q = addQueryFilter(q, e.restQuery.Filter, And)
-	e.count, err = q.Count()
-	if err != nil {
-		return NewErrorFromCause(e.restQuery, err)
+func (e *Executor) GetSliceExecFunc() transactional.ExecFunc {
+	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		var err error
+		q := tx.ModelContext(ctx, e.entity)
+		q = addQueryLimit(q, e.restQuery.Limit)
+		q = addQueryOffset(q, e.restQuery.Offset)
+		q = addQueryFields(q, e.restQuery.Fields)
+		q = addQuerySorts(q, e.restQuery.Sorts)
+		q = addQueryFilter(q, e.restQuery.Filter, And)
+		e.count, err = q.Count()
+		if err != nil {
+			return ctx, NewErrorFromCause(e.restQuery, err)
+		}
+		if e.count == 0 {
+			return ctx, nil
+		}
+		if err = q.Select(); err != nil {
+			return ctx, NewErrorFromCause(e.restQuery, err)
+		}
+		return ctx, nil
 	}
-	if e.count == 0 {
-		return nil
-	}
-	if err = q.Select(); err != nil {
-		return NewErrorFromCause(e.restQuery, err)
-	}
-	return nil
 }
 
-func (e *Executor) executeInsert() error {
-	q := orm.NewQueryContext(e.ctx, e.tx, e.entity)
-	if _, err := q.Insert(); err != nil {
-		return NewErrorFromCause(e.restQuery, err)
+func (e *Executor) InsertExecFunc() transactional.ExecFunc {
+	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		q := orm.NewQueryContext(ctx, tx, e.entity)
+		if _, err := q.Insert(); err != nil {
+			return ctx, NewErrorFromCause(e.restQuery, err)
+		}
+		e.count = 1
+		return ctx, nil
 	}
-	e.count = 1
-	return nil
 }
 
-func (e *Executor) executeUpdate() error {
-	q := orm.NewQueryContext(e.ctx, e.tx, e.entity).WherePK()
-	if _, err := q.Update(); err != nil {
-		return NewErrorFromCause(e.restQuery, err)
+func (e *Executor) UpdateExecFunc() transactional.ExecFunc {
+	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		q := orm.NewQueryContext(ctx, tx, e.entity).WherePK()
+		if _, err := q.Update(); err != nil {
+			return ctx, NewErrorFromCause(e.restQuery, err)
+		}
+		e.count = 1
+		return ctx, nil
 	}
-	e.count = 1
-	return nil
 }
 
-func (e *Executor) executeDelete() error {
-	q := orm.NewQueryContext(e.ctx, e.tx, e.entity).WherePK()
-	if _, err := q.Delete(e.entity); err != nil {
-		return NewErrorFromCause(e.restQuery, err)
+func (e *Executor) DeleteExecFunc() transactional.ExecFunc {
+	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+		q := orm.NewQueryContext(ctx, tx, e.entity).WherePK()
+		if _, err := q.Delete(e.entity); err != nil {
+			return ctx, NewErrorFromCause(e.restQuery, err)
+		}
+		e.count = 1
+		return ctx, nil
 	}
-	e.count = 1
-	return nil
 }

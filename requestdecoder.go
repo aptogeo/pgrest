@@ -26,7 +26,7 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 		action = Delete
 	}
 	if res != nil && res[4] == "" && action != None {
-		restQuery := &RestQuery{Action: action, Offset: 0, Limit: 10}
+		restQuery := &RestQuery{Request: request, Action: action, Offset: 0, Limit: 10}
 		restQuery.Resource = res[2]
 		restQuery.Key = res[3]
 
@@ -104,7 +104,7 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			restQuery.Debug = debug
 		}
 
-		return restQuery.WithContext(request.Context())
+		return restQuery
 	}
 	return nil
 }
