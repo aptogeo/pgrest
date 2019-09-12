@@ -25,15 +25,15 @@ const (
 
 // Execute executes ExecFunc in transaction
 func Execute(ctx context.Context, execFunc ExecFunc) (context.Context, error) {
-	return execute(ctx, execFunc, Required)
+	return execute(ctx, Required, execFunc)
 }
 
 // ExecuteWithPropagation executes ExecFunc in transaction with specific propagation
-func ExecuteWithPropagation(ctx context.Context, execFunc ExecFunc, propagation Propagation) (context.Context, error) {
-	return execute(ctx, execFunc, propagation)
+func ExecuteWithPropagation(ctx context.Context, propagation Propagation, execFunc ExecFunc) (context.Context, error) {
+	return execute(ctx, propagation, execFunc)
 }
 
-func execute(ctx context.Context, execFunc ExecFunc, propagation Propagation) (context.Context, error) {
+func execute(ctx context.Context, propagation Propagation, execFunc ExecFunc) (context.Context, error) {
 	var err error
 	var tx *pg.Tx
 	var localtx *pg.Tx
