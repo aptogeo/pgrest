@@ -29,9 +29,9 @@ func NewExecutor(restQuery *RestQuery, entity interface{}) *Executor {
 func (e *Executor) GetSearchPath(ctx context.Context) (string, error) {
 	var searchPath string
 	var err error
-	ctx, err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		tx.QueryOneContext(ctx, pg.Scan(&searchPath), "SHOW search_path")
-		return ctx, nil
+		return nil
 	})
 	if err != nil {
 		return "", err
@@ -49,39 +49,39 @@ func (e *Executor) ExecuteWithSearchPath(ctx context.Context, searchPath string,
 			return err
 		}
 	}
-	ctx, err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		if searchPath != "" {
 			_, err = tx.ExecContext(ctx, "SET search_path = "+searchPath)
 			if err != nil {
-				return ctx, err
+				return err
 			}
 		}
 		if execFunc != nil {
-			ctx, err = execFunc(ctx, tx)
+			err = execFunc(ctx, tx)
 		}
 		if searchPath != "" {
 			tx.ExecContext(ctx, "SET search_path = "+e.originalSearchPath)
 		}
-		return ctx, err
+		return err
 	})
 	return err
 }
 
 func (e *Executor) GetOneExecFunc() transactional.ExecFunc {
-	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	return func(ctx context.Context, tx *pg.Tx) error {
 		q := tx.ModelContext(ctx, e.entity).WherePK()
 		q = addQueryFields(q, e.restQuery.Fields)
 		q = addQueryRelations(q, e.restQuery.Relations)
 		if err := q.Select(); err != nil {
-			return ctx, NewErrorFromCause(e.restQuery, err)
+			return NewErrorFromCause(e.restQuery, err)
 		}
 		e.count = 1
-		return ctx, nil
+		return nil
 	}
 }
 
 func (e *Executor) GetSliceExecFunc() transactional.ExecFunc {
-	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	return func(ctx context.Context, tx *pg.Tx) error {
 		var err error
 		q := tx.ModelContext(ctx, e.entity)
 		q = addQueryLimit(q, e.restQuery.Limit)
@@ -91,47 +91,47 @@ func (e *Executor) GetSliceExecFunc() transactional.ExecFunc {
 		q = addQueryFilter(q, e.restQuery.Filter, And)
 		e.count, err = q.Count()
 		if err != nil {
-			return ctx, NewErrorFromCause(e.restQuery, err)
+			return NewErrorFromCause(e.restQuery, err)
 		}
 		if e.count == 0 {
-			return ctx, nil
+			return nil
 		}
 		if err = q.Select(); err != nil {
-			return ctx, NewErrorFromCause(e.restQuery, err)
+			return NewErrorFromCause(e.restQuery, err)
 		}
-		return ctx, nil
+		return nil
 	}
 }
 
 func (e *Executor) InsertExecFunc() transactional.ExecFunc {
-	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	return func(ctx context.Context, tx *pg.Tx) error {
 		q := orm.NewQueryContext(ctx, tx, e.entity)
 		if _, err := q.Insert(); err != nil {
-			return ctx, NewErrorFromCause(e.restQuery, err)
+			return NewErrorFromCause(e.restQuery, err)
 		}
 		e.count = 1
-		return ctx, nil
+		return nil
 	}
 }
 
 func (e *Executor) UpdateExecFunc() transactional.ExecFunc {
-	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	return func(ctx context.Context, tx *pg.Tx) error {
 		q := orm.NewQueryContext(ctx, tx, e.entity).WherePK()
 		if _, err := q.Update(); err != nil {
-			return ctx, NewErrorFromCause(e.restQuery, err)
+			return NewErrorFromCause(e.restQuery, err)
 		}
 		e.count = 1
-		return ctx, nil
+		return nil
 	}
 }
 
 func (e *Executor) DeleteExecFunc() transactional.ExecFunc {
-	return func(ctx context.Context, tx *pg.Tx) (context.Context, error) {
+	return func(ctx context.Context, tx *pg.Tx) error {
 		q := orm.NewQueryContext(ctx, tx, e.entity).WherePK()
 		if _, err := q.Delete(e.entity); err != nil {
-			return ctx, NewErrorFromCause(e.restQuery, err)
+			return NewErrorFromCause(e.restQuery, err)
 		}
 		e.count = 1
-		return ctx, nil
+		return nil
 	}
 }
