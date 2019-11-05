@@ -99,9 +99,9 @@ func addQueryFilter(query *orm.Query, filter *Filter, parentGroupOp Op) *orm.Que
 	case Neq:
 		return addWhere(query, "? != ?", filter.Attr, filter.Value, parentGroupOp)
 	case In:
-		return addWhere(query, "? IN (?)", filter.Attr, types.InSlice(filter.Value), parentGroupOp)
+		return addWhere(query, "? IN (?)", filter.Attr, types.In(filter.Value), parentGroupOp)
 	case Nin:
-		return addWhere(query, "? NOT IN (?)", filter.Attr, types.InSlice(filter.Value), parentGroupOp)
+		return addWhere(query, "? NOT IN (?)", filter.Attr, types.In(filter.Value), parentGroupOp)
 	case Gt:
 		return addWhere(query, "? > ?", filter.Attr, filter.Value, parentGroupOp)
 	case Gte:
@@ -137,9 +137,9 @@ func addQueryFilter(query *orm.Query, filter *Filter, parentGroupOp Op) *orm.Que
 
 func addWhere(query *orm.Query, condition string, attribute string, value interface{}, parentGroupOp Op) *orm.Query {
 	if parentGroupOp == Or {
-		return query.WhereOr(condition, types.F(attribute), value)
+		return query.WhereOr(condition, types.Ident(attribute), value)
 	}
-	return query.Where(condition, types.F(attribute), value)
+	return query.Where(condition, types.Ident(attribute), value)
 }
 
 func addWhereGroup(query *orm.Query, fnGroup func(query *orm.Query) (*orm.Query, error), parentGroupOp Op) *orm.Query {

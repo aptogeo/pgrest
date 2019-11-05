@@ -101,12 +101,17 @@ func (c *Config) Prefix() string {
 
 // SetDefaultContentType sets defaultContentType
 func (c *Config) SetDefaultContentType(defaultContentType string) {
-	c.prefix = defaultContentType
+	c.defaultContentType = defaultContentType
 }
 
 // DefaultContentType gets defaultContentType
 func (c *Config) DefaultContentType() string {
 	return c.defaultContentType
+}
+
+// SetDefaultAccept sets defaultAccept
+func (c *Config) SetDefaultAccept(defaultAccept string) {
+	c.defaultAccept = defaultAccept
 }
 
 // DefaultAccept gets defaultAccept
@@ -142,7 +147,7 @@ func (c *Config) ErrorLogger() *log.Logger {
 // NewConfig constructs Config
 func NewConfig(prefix string, db *pg.DB) *Config {
 	c := new(Config)
-	c.prefix = prefix
+	c.SetPrefix(prefix)
 	c.db = db
 	c.resources = make(map[string]*Resource)
 	c.defaultContentType = "application/json"

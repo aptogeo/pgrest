@@ -14,7 +14,7 @@ import (
 )
 
 type Todo struct {
-	ID   uuid.UUID `sql:",pk"`
+	ID   uuid.UUID `pg:",pk"`
 	Text string
 }
 
@@ -37,9 +37,9 @@ type Author struct {
 	ID             int
 	Firstname      string
 	Lastname       string
-	Picture        []byte `sql:",type:bytea"`
+	Picture        []byte `pg:",type:bytea"`
 	Books          []*Book
-	TransientField string `sql:"-"`
+	TransientField string `pg:"-"`
 }
 
 func (b *Author) AfterSelect(ctx context.Context) error {
