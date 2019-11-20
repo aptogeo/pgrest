@@ -14,7 +14,7 @@ import (
 )
 
 type Todo struct {
-	ID   uuid.UUID `sql:",pk"`
+	ID   uuid.UUID `pg:",pk"`
 	Text string
 }
 
