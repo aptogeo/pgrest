@@ -10,19 +10,20 @@ import (
 	"github.com/go-pg/pg/v9"
 )
 
+// ExecFunc definition
 type ExecFunc func(ctx context.Context, tx *pg.Tx) error
 
 // Propagation type
 type Propagation string
 
 const (
-	// Support a current transaction, create a new one if none exists
+	// Current supports a current transaction, create a new one if none exists
 	Current Propagation = "Current"
 
-	// Support a current transaction, return an exception if none exists
+	// Mandatory Mandatory a current transaction, return an exception if none exists
 	Mandatory Propagation = "Mandatory"
 
-	// Support a current transaction, create a new one if none exists and create savepoint
+	// Savepoint supports a current transaction, create a new one if none exists and create savepoint
 	Savepoint Propagation = "Savepoint"
 )
 
