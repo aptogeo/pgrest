@@ -3,7 +3,6 @@ package pgrest_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/aptogeo/pgrest"
 	"github.com/aptogeo/pgrest/transactional"
@@ -56,9 +55,7 @@ type PageOnly struct {
 
 func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 	db := pg.Connect(&pg.Options{
-		User:               "postgres",
-		Password:           "postgres",
-		IdleCheckFrequency: 100 * time.Millisecond,
+		User: "postgres",
 	})
 	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil), (*Todo)(nil)} {
 		err := db.CreateTable(model, &orm.CreateTableOptions{

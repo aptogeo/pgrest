@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/aptogeo/pgrest/transactional"
 	"github.com/go-pg/pg/v9"
@@ -27,9 +26,7 @@ func (t *Todo) BeforeInsert(c context.Context) (context.Context, error) {
 
 func initTests(t *testing.T) *pg.DB {
 	db := pg.Connect(&pg.Options{
-		User:               "postgres",
-		Password:           "postgres",
-		IdleCheckFrequency: 100 * time.Millisecond,
+		User: "postgres",
 	})
 	for _, model := range []interface{}{(*Todo)(nil)} {
 		err := db.CreateTable(model, &orm.CreateTableOptions{
