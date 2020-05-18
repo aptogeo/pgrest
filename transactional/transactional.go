@@ -17,13 +17,13 @@ type ExecFunc func(ctx context.Context, tx *pg.Tx) error
 type Propagation string
 
 const (
-	// Current supports a current transaction, create a new one if none exists
+	// Current supports a current transaction, creates a new one if none exists
 	Current Propagation = "Current"
 
-	// Mandatory Mandatory a current transaction, return an exception if none exists
+	// Mandatory Current a current transaction, return an exception if none exists
 	Mandatory Propagation = "Mandatory"
 
-	// Savepoint supports a current transaction, create a new one if none exists and create savepoint
+	// Savepoint supports a current transaction, creates a new one if none exists and creates savepoint
 	Savepoint Propagation = "Savepoint"
 )
 
@@ -57,12 +57,12 @@ func execute(ctx context.Context, propagation Propagation, execFunc ExecFunc) er
 	var err error
 	var localtx *pg.Tx
 	var savepoint string
+	db := DbFromContext(ctx)
 	tx := TxFromContext(ctx)
 	if tx == nil {
 		if propagation == Mandatory {
 			return newPropagationError(errors.New("No pg.Tx found in context with Mandatory propagation"), propagation)
 		}
-		db := DbFromContext(ctx)
 		if db == nil {
 			return newPropagationError(errors.New("No pg.DB found in context"), propagation)
 		}
@@ -80,27 +80,20 @@ func execute(ctx context.Context, propagation Propagation, execFunc ExecFunc) er
 		}
 	}
 	err = execFunc(ContextWithTx(ctx, tx), tx)
-	if err != nil {
-		if savepoint != "" {
-			propagationError, ok := err.(*propagationError)
-			if ok == true && propagationError.Propagation == Savepoint {
-				tx.Exec("RELEASE SAVEPOINT " + savepoint)
-			} else {
-				tx.Exec("ROLLBACK TO SAVEPOINT " + savepoint)
-			}
+	if savepoint != "" {
+		if err == nil {
+			tx.Exec("RELEASE SAVEPOINT " + savepoint)
+		} else {
+			tx.Exec("ROLLBACK TO SAVEPOINT " + savepoint)
 		}
 		if localtx != nil {
-			propagationError, ok := err.(*propagationError)
-			if ok == true && propagationError.Propagation == Savepoint {
-				localtx.Commit()
-			} else {
-				localtx.Rollback()
-			}
+			localtx.Commit()
 		}
-		return newPropagationError(err, propagation)
+		return nil
 	}
-	if savepoint != "" {
-		tx.Exec("RELEASE SAVEPOINT " + savepoint)
+	if err != nil {
+		tx.Rollback()
+		return newPropagationError(err, propagation)
 	}
 	if localtx != nil {
 		localtx.Commit()
