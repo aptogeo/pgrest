@@ -11,7 +11,6 @@ import (
 
 	"github.com/aptogeo/pgrest/transactional"
 	"github.com/go-pg/pg/v9/orm"
-	"github.com/go-pg/pg/v9/types"
 	"github.com/vmihailenco/msgpack/v4"
 )
 
@@ -158,14 +157,14 @@ func (e *Engine) Deserialize(restQuery *RestQuery, resource *Resource, entity in
 				found := false
 				for _, field := range table.Fields {
 					if field.GoName == parts[0] {
-						field.ScanValue(elem, types.NewBytesReader([]byte(parts[1])), len(parts[1]))
+						field.ScanValue(elem, NewBytesReader([]byte(parts[1])), len(parts[1]))
 						found = true
 					}
 				}
 				if !found {
 					for _, field := range table.Fields {
 						if field.SQLName == parts[0] {
-							field.ScanValue(elem, types.NewBytesReader([]byte(parts[1])), len(parts[1]))
+							field.ScanValue(elem, NewBytesReader([]byte(parts[1])), len(parts[1]))
 							found = true
 						}
 					}
