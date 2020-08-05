@@ -58,7 +58,7 @@ func initTests(t *testing.T) (*pg.DB, *pgrest.Config) {
 		User: "postgres",
 	})
 	for _, model := range []interface{}{(*Author)(nil), (*Book)(nil), (*Todo)(nil)} {
-		err := db.CreateTable(model, &orm.CreateTableOptions{
+		err := db.Model(model).CreateTable(&orm.CreateTableOptions{
 			Temp: true,
 		})
 		assert.Nil(t, err)
