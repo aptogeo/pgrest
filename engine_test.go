@@ -132,7 +132,7 @@ func TestPostPatchGetDelete(t *testing.T) {
 	resAuthors = *page.Slice.(*[]Author)
 	assert.Equal(t, len(resAuthors), 3)
 	for _, author := range resAuthors {
-		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []*pgrest.Field{&pgrest.Field{Name: "*"}}, Relations: []*pgrest.Relation{&pgrest.Relation{Name: "Books"}}})
+		res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Author", Key: strconv.Itoa(author.ID), Fields: []*pgrest.Field{{Name: "*"}}, Relations: []*pgrest.Relation{{Name: "Books"}}})
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 		resAuthor = res.(*Author)
@@ -168,7 +168,7 @@ func TestPostPatchGetDelete(t *testing.T) {
 	assert.Equal(t, resAuthor.Lastname, "de Saint Exupéry")
 	assert.Equal(t, resAuthor.TransientField, "public, other")
 
-	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{&pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}, &pgrest.Filter{Op: pgrest.Ilk, Attr: "title", Value: "%ta%"}}}})
+	res, err = engine.Execute(&pgrest.RestQuery{Action: pgrest.Get, Resource: "Book", Filter: &pgrest.Filter{Op: pgrest.Or, Filters: []*pgrest.Filter{{Op: pgrest.Ilk, Attr: "title", Value: "%lo%"}, {Op: pgrest.Ilk, Attr: "title", Value: "%ta%"}}}})
 	assert.Nil(t, err)
 	assert.NotNil(t, res)
 	page = *res.(*pgrest.Page)

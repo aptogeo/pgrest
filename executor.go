@@ -26,6 +26,7 @@ func NewExecutor(restQuery *RestQuery, entity interface{}) *Executor {
 	return e
 }
 
+// GetSearchPath gets search path
 func (e *Executor) GetSearchPath(ctx context.Context) (string, error) {
 	var searchPath string
 	var err error
@@ -41,6 +42,7 @@ func (e *Executor) GetSearchPath(ctx context.Context) (string, error) {
 	return searchPath, nil
 }
 
+// ExecuteWithSearchPath executes with search path
 func (e *Executor) ExecuteWithSearchPath(ctx context.Context, searchPath string, execFunc transactional.ExecFunc) error {
 	var err error
 	if e.originalSearchPath == "" {
@@ -67,6 +69,7 @@ func (e *Executor) ExecuteWithSearchPath(ctx context.Context, searchPath string,
 	return err
 }
 
+// GetOneExecFunc gets one execution function
 func (e *Executor) GetOneExecFunc() transactional.ExecFunc {
 	return func(ctx context.Context, tx *pg.Tx) error {
 		q := tx.ModelContext(ctx, e.entity).WherePK()
@@ -80,6 +83,7 @@ func (e *Executor) GetOneExecFunc() transactional.ExecFunc {
 	}
 }
 
+// GetSliceExecFunc gets slice execution function
 func (e *Executor) GetSliceExecFunc() transactional.ExecFunc {
 	return func(ctx context.Context, tx *pg.Tx) error {
 		var err error
@@ -103,6 +107,7 @@ func (e *Executor) GetSliceExecFunc() transactional.ExecFunc {
 	}
 }
 
+// InsertExecFunc inserts execution function
 func (e *Executor) InsertExecFunc() transactional.ExecFunc {
 	return func(ctx context.Context, tx *pg.Tx) error {
 		q := orm.NewQueryContext(ctx, tx, e.entity)
@@ -114,6 +119,7 @@ func (e *Executor) InsertExecFunc() transactional.ExecFunc {
 	}
 }
 
+// UpdateExecFunc updates execution function
 func (e *Executor) UpdateExecFunc() transactional.ExecFunc {
 	return func(ctx context.Context, tx *pg.Tx) error {
 		q := orm.NewQueryContext(ctx, tx, e.entity).WherePK()
@@ -125,6 +131,7 @@ func (e *Executor) UpdateExecFunc() transactional.ExecFunc {
 	}
 }
 
+// DeleteExecFunc deletes execution function
 func (e *Executor) DeleteExecFunc() transactional.ExecFunc {
 	return func(ctx context.Context, tx *pg.Tx) error {
 		q := orm.NewQueryContext(ctx, tx, e.entity).WherePK()

@@ -79,7 +79,7 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			st := strings.TrimSpace(s)
 			if st != "" {
 				if strings.HasPrefix(s, "-") {
-					restQuery.Sorts = append(restQuery.Sorts, &Sort{st[1:len(st)], false})
+					restQuery.Sorts = append(restQuery.Sorts, &Sort{st[1:], false})
 				} else {
 					restQuery.Sorts = append(restQuery.Sorts, &Sort{st, true})
 				}
@@ -92,6 +92,7 @@ func RequestDecoder(request *http.Request, config *Config) *RestQuery {
 			json.Unmarshal([]byte(filterStr), restQuery.Filter)
 		}
 
+		// Search path from searchpath, searchPath or search_path
 		restQuery.SearchPath = strings.TrimSpace(params.Get("searchpath"))
 		if restQuery.SearchPath == "" {
 			restQuery.SearchPath = strings.TrimSpace(params.Get("searchPath"))

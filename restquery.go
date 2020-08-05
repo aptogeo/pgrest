@@ -80,7 +80,7 @@ type Filter struct {
 	Op      Op          // operation
 	Attr    string      // attribute name
 	Value   interface{} // attribute value
-	Filters []*Filter   // sub filters for 'and', 'or' and 'not' operation
+	Filters []*Filter   // sub filters for 'and' and 'or' operations
 }
 
 func (f *Filter) String() string {
