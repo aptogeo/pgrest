@@ -12,7 +12,7 @@ func setPk(resourceType reflect.Type, elem reflect.Value, key string) error {
 	table := orm.GetTable(resourceType)
 	if len(table.PKs) == 1 {
 		pk := table.PKs[0]
-		return pk.ScanValue(elem, types.NewBytesReader([]byte(key)), len(key))
+		return pk.ScanValue(elem, NewBytesReader([]byte(key)), len(key))
 	}
 	return NewErrorBadRequest(fmt.Sprintf("only single pk is permitted for resource '%v'", resourceType))
 }
