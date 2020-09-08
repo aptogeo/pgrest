@@ -17,13 +17,13 @@ type ExecFunc func(ctx context.Context, tx *pg.Tx) error
 type Propagation string
 
 const (
-	// Current supports a current transaction, creates a new one if none exists
+	// Current supports a current transaction, creates a new one if none exists.
 	Current Propagation = "Current"
 
-	// Mandatory Current a current transaction, return an exception if none exists
+	// Mandatory needs a current transaction, return an exception if none exists
 	Mandatory Propagation = "Mandatory"
 
-	// Savepoint supports a current transaction, creates a new one if none exists and creates savepoint
+	// Savepoint supports a current transaction, creates a new one if none exists, creates savepoint and never return propagation error
 	Savepoint Propagation = "Savepoint"
 )
 
@@ -57,6 +57,15 @@ func execute(ctx context.Context, propagation Propagation, execFunc ExecFunc) er
 	var err error
 	var localtx *pg.Tx
 	var savepoint string
+	defer func() {
+		if localtx != nil {
+			if err == nil || propagation == Savepoint {
+				localtx.Commit()
+			} else {
+				localtx.Rollback()
+			}
+		}
+	}()
 	db := DbFromContext(ctx)
 	tx := TxFromContext(ctx)
 	if tx == nil {
@@ -66,17 +75,18 @@ func execute(ctx context.Context, propagation Propagation, execFunc ExecFunc) er
 		if db == nil {
 			return newPropagationError(errors.New("No pg.DB found in context"), propagation)
 		}
-		localtx, err = db.Begin()
-		tx = localtx
+		tx, err = db.Begin()
 		if err != nil {
 			return newPropagationError(err, propagation)
 		}
+		localtx = tx
 	}
 	if propagation == Savepoint {
 		savepoint = "sp" + strconv.FormatInt(time.Now().UnixNano(), 16) + strconv.FormatInt(rand.Int63(), 16)
 		_, err = tx.Exec("SAVEPOINT " + savepoint)
 		if err != nil {
-			return newPropagationError(err, propagation)
+			// Never return propagation error for Savepoint
+			return nil
 		}
 	}
 	err = execFunc(ContextWithTx(ctx, tx), tx)
@@ -86,17 +96,11 @@ func execute(ctx context.Context, propagation Propagation, execFunc ExecFunc) er
 		} else {
 			tx.Exec("ROLLBACK TO SAVEPOINT " + savepoint)
 		}
-		if localtx != nil {
-			localtx.Commit()
-		}
+		// Never return propagation error for Savepoint
 		return nil
 	}
 	if err != nil {
-		tx.Rollback()
 		return newPropagationError(err, propagation)
-	}
-	if localtx != nil {
-		localtx.Commit()
 	}
 	return nil
 }
