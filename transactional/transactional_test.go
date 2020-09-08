@@ -40,11 +40,11 @@ func initTests(t *testing.T) *pg.DB {
 
 func TestTransactionalCurrentKO(t *testing.T) {
 	db := initTests(t)
-	var err error
 	ctx := transactional.ContextWithDb(context.Background(), db)
-	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
+	err := transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ko"}
-		tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
+		assert.Nil(t, err)
 		return errors.New("ko")
 	})
 	assert.NotNil(t, err)
@@ -55,11 +55,11 @@ func TestTransactionalCurrentKO(t *testing.T) {
 
 func TestTransactionalCurrentOK(t *testing.T) {
 	db := initTests(t)
-	var err error
 	ctx := transactional.ContextWithDb(context.Background(), db)
-	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
+	err := transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		return tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
+		return err
 	})
 	assert.Nil(t, err)
 	count, err := db.Model(&Todo{}).Count()
@@ -69,15 +69,15 @@ func TestTransactionalCurrentOK(t *testing.T) {
 
 func TestTransactionalCurrentOKCurrentKO(t *testing.T) {
 	db := initTests(t)
-	var err error
 	ctx := transactional.ContextWithDb(context.Background(), db)
-	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
+	err := transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		err := tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ko"}
-			tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			assert.Nil(t, err)
 			return errors.New("ko")
 		})
 	})
@@ -89,15 +89,15 @@ func TestTransactionalCurrentOKCurrentKO(t *testing.T) {
 
 func TestTransactionalCurrentOKCurrentOK(t *testing.T) {
 	db := initTests(t)
-	var err error
 	ctx := transactional.ContextWithDb(context.Background(), db)
-	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
+	err := transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		err := tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ok"}
-			return tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			return err
 		})
 	})
 	assert.Nil(t, err)
@@ -112,7 +112,8 @@ func TestTransactionalMandatory(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Mandatory, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		return tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
+		return err
 	})
 	assert.NotNil(t, err)
 	count, err := db.Model(&Todo{}).Count()
@@ -122,7 +123,8 @@ func TestTransactionalMandatory(t *testing.T) {
 	err = transactional.Execute(ctx, func(ctx context.Context, tx *pg.Tx) error {
 		return transactional.ExecuteWithPropagation(ctx, transactional.Current, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ok"}
-			return tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			return err
 		})
 	})
 	assert.Nil(t, err)
@@ -137,7 +139,7 @@ func TestTransactionalSavepointKO(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ko"}
-		err = tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return errors.New("ko")
 	})
@@ -153,7 +155,9 @@ func TestTransactionalSavepointOK(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ko"}
-		return tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
+		assert.Nil(t, err)
+		return err
 	})
 	assert.Nil(t, err)
 	count, err := db.Model(&Todo{}).Count()
@@ -167,11 +171,13 @@ func TestTransactionalSavepointOKSavepointOK(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		err := tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ok"}
-			return tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			assert.Nil(t, err)
+			return err
 		})
 	})
 	assert.Nil(t, err)
@@ -186,11 +192,12 @@ func TestTransactionalSavepointOKSavepointKO(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		err := tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ko"}
-			tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			assert.Nil(t, err)
 			return errors.New("ko")
 		})
 	})
@@ -206,11 +213,12 @@ func TestTransactionalCurrentOKSavepointKO(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Current, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		err := tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ko"}
-			tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			assert.Nil(t, err)
 			return errors.New("ko")
 		})
 	})
@@ -226,11 +234,12 @@ func TestTransactionalCurrentOKSavepointOK(t *testing.T) {
 	ctx := transactional.ContextWithDb(context.Background(), db)
 	err = transactional.ExecuteWithPropagation(ctx, transactional.Current, func(ctx context.Context, tx *pg.Tx) error {
 		todo := &Todo{Text: "ok"}
-		err := tx.Insert(todo)
+		_, err := tx.ModelContext(ctx, todo).Insert()
 		assert.Nil(t, err)
 		return transactional.ExecuteWithPropagation(ctx, transactional.Savepoint, func(ctx context.Context, tx *pg.Tx) error {
 			todo := &Todo{Text: "ok"}
-			return tx.Insert(todo)
+			_, err := tx.ModelContext(ctx, todo).Insert()
+			return err
 		})
 	})
 	assert.Nil(t, err)

@@ -29,16 +29,16 @@ type Book struct {
 	Title    string
 	NbPages  int
 	AuthorID int
-	Author   *Author
+	Author   *Author `pg:"rel:has-one"`
 }
 
 type Author struct {
 	ID             int
 	Firstname      string
 	Lastname       string
-	Picture        []byte `pg:",type:bytea"`
-	Books          []*Book
-	TransientField string `pg:"-"`
+	Picture        []byte  `pg:",type:bytea"`
+	Books          []*Book `pg:"rel:has-many"`
+	TransientField string  `pg:"-"`
 }
 
 func (b *Author) AfterSelect(ctx context.Context) error {
