@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/aptogeo/pgrest/transactional"
-	"github.com/go-pg/pg/v9"
-	"github.com/go-pg/pg/v9/orm"
+	"github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10/orm"
 )
 
 // Executor structure

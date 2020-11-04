@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/aptogeo/pgrest/transactional"
-	"github.com/go-pg/pg/v9/orm"
+	"github.com/go-pg/pg/v10/orm"
 	"github.com/vmihailenco/msgpack/v4"
 )
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-pg/pg/v9/orm"
-	"github.com/go-pg/pg/v9/types"
+	"github.com/go-pg/pg/v10/orm"
+	"github.com/go-pg/pg/v10/types"
 )
 
 func setPk(resourceType reflect.Type, elem reflect.Value, key string) error {

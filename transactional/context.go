@@ -3,7 +3,7 @@ package transactional
 import (
 	"context"
 
-	"github.com/go-pg/pg/v9"
+	"github.com/go-pg/pg/v10"
 )
 
 // The contextKey type is unexported to prevent collisions with context keys defined in
