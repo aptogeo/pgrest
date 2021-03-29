@@ -8,7 +8,7 @@ import (
 	"github.com/go-pg/pg/v10"
 	"github.com/google/uuid"
 
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/aptogeo/pgrest"
 	"github.com/stretchr/testify/assert"

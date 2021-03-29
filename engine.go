@@ -11,7 +11,7 @@ import (
 
 	"github.com/aptogeo/pgrest/transactional"
 	"github.com/go-pg/pg/v10/orm"
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Engine structure
@@ -173,7 +173,7 @@ func (e *Engine) Deserialize(restQuery *RestQuery, resource *Resource, entity in
 		}
 	} else if regexp.MustCompile("[+-/](msgpack|messagepack)($|[+-])").MatchString(restQuery.ContentType) {
 		decoder := msgpack.NewDecoder(bytes.NewReader(restQuery.Content))
-		decoder.UseJSONTag(true)
+		decoder.SetCustomStructTag("json")
 		if err := decoder.Decode(entity); err != nil {
 			return &Error{Cause: err}
 		}

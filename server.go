@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // Server structure
@@ -85,8 +85,8 @@ func (s *Server) Serialize(restQuery *RestQuery, entity interface{}) ([]byte, st
 	} else if regexp.MustCompile("[+-/]msgpack($|[+-;])").MatchString(restQuery.Accept) {
 		var buf bytes.Buffer
 		encoder := msgpack.NewEncoder(&buf)
-		encoder.UseJSONTag(true)
-		encoder.UseCompactEncoding(true)
+		encoder.SetCustomStructTag("json")
+		encoder.UseCompactInts(true)
 		err = encoder.Encode(entity)
 		data = buf.Bytes()
 		contentType = "application/x-msgpack"
